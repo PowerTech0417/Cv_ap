@@ -1,25 +1,23 @@
 {
-  "packageId": "com.generate.links",
-  "host": "powertech0417.github.io",
-  "name": "下载链接生成器",
-  "launcherName": "LinkGen",
-  "applicationId": "com.generate.links",
-  "startUrl": "/Cv_ap/",
+  "name": "CV AP",
+  "short_name": "CV AP",
+  "start_url": "/Cv_ap/",
+  "scope": "/Cv_ap/",
   "display": "standalone",
-  "themeColor": "#0a0f1c",
-  "navigationColor": "#0a0f1c",
-  "navigationColorDark": "#000000",
-  "navigationDividerColor": "#000000",
-  "backgroundColor": "#02040a",
-  "enableNotifications": true,
-  "handleLinks": "all",
   "orientation": "portrait",
-  "shortcuts": [],
-  "signingKey": {
-    "path": "my-release-key.jks",
-    "alias": "twaKey"
-  },
-  "generatorApp": "bubblewrap-cli",
-  "webManifestUrl": "https://powertech0417.github.io/Cv_ap/manifest.webmanifest",
-  "fallbackType": "customtabs"
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "description": "CV AP Progressive Web Application",
+  "icons": [
+    {
+      "src": "/Cv_ap/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/Cv_ap/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
 }
