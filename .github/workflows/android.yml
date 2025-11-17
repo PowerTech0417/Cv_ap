@@ -7,47 +7,44 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    env:
+      BUBBLEWRAP_NO_PROMPT: true   # ←←← 终极关键！彻底禁止所有互动
+      KEYSTORE_P12_BASE64: ${{ secrets.KEYSTORE_P12_BASE64 }}
+      KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+      KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+      KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
     steps:
-      - name: Checkout Code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Node, JDK, Bubblewrap
+      - name: Install JDK + Node + Bubblewrap
         run: |
           sudo apt update
           sudo apt install -y openjdk-17-jdk
           npm install -g @bubblewrap/cli
 
-      # === Restore keystore (.p12) ===
-      - name: Restore Keystore
-        run: |
-          echo "$KEYSTORE_P12_BASE64" | base64 --decode > powertech.p12
+      - name: Restore keystore
+        run: echo "$KEYSTORE_P12_BASE64" | base64 --decode > powertech.p12
 
-      # === Initialize TWA Project (Non-interactive) ===
       - name: Bubblewrap Init
         run: |
           bubblewrap init \
             --manifest=https://powertech0417.github.io/Cv_ap/manifest.json \
-            --skipPwaValidation \
             --noPrompt \
+            --skipPwaValidation \
             --signingKey=powertech.p12 \
             --storePassword=$KEYSTORE_PASSWORD \
             --keyAlias=$KEY_ALIAS \
             --keyPassword=$KEY_PASSWORD \
-            || echo "Bubblewrap project already initialized."
+          || echo "Already initialized"
 
-      # === Build APK ===
-      - name: Build APK
-        run: bubblewrap build
+      - name: Bubblewrap Build
+        run: |
+          bubblewrap build --noPrompt
 
-      # === Upload final APK (LATEST v4 syntax) ===
-      - name: Upload APK Artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: CV-APP-APK
+          name: CV-APP
           path: android/app-release-signed.apk
-
-    env:
-      KEYSTORE_P12_BASE64: ${{ secrets.KEYSTORE_P12_BASE64 }}
-      KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-      KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-      KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
