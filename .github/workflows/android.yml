@@ -8,29 +8,43 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-      - name: Install Node & Bubblewrap
+      - name: Install Node, JDK, Bubblewrap
         run: |
           sudo apt update
           sudo apt install -y openjdk-17-jdk
           npm install -g @bubblewrap/cli
 
-      - name: Decode keystore
+      # === Restore keystore (.p12) ===
+      - name: Restore Keystore
         run: |
           echo "$KEYSTORE_P12_BASE64" | base64 --decode > powertech.p12
 
-      - name: Build TWA
+      # === Initialize TWA Project (Non-interactive) ===
+      - name: Bubblewrap Init
         run: |
-          bubblewrap init --manifest=https://你的网址/manifest.json --skipPwaValidation || echo "already initialized"
-          bubblewrap build
+          bubblewrap init \
+            --manifest=https://powertech0417.github.io/Cv_ap/manifest.json \
+            --skipPwaValidation \
+            --noPrompt \
+            --signingKey=powertech.p12 \
+            --storePassword=$KEYSTORE_PASSWORD \
+            --keyAlias=$KEY_ALIAS \
+            --keyPassword=$KEY_PASSWORD \
+            || echo "Bubblewrap project already initialized."
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v3
+      # === Build APK ===
+      - name: Build APK
+        run: bubblewrap build
+
+      # === Upload final APK (LATEST v4 syntax) ===
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: cv-app-apk
-          path: ./android/app-release-signed.apk
+          name: CV-APP-APK
+          path: android/app-release-signed.apk
 
     env:
       KEYSTORE_P12_BASE64: ${{ secrets.KEYSTORE_P12_BASE64 }}
