@@ -7,13 +7,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    env:
-      BUBBLEWRAP_NO_PROMPT: true   # ←←← 终极关键！彻底禁止所有互动
-      KEYSTORE_P12_BASE64: ${{ secrets.KEYSTORE_P12_BASE64 }}
-      KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-      KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-      KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,24 +17,36 @@ jobs:
           sudo apt install -y openjdk-17-jdk
           npm install -g @bubblewrap/cli
 
-      - name: Restore keystore
+      - name: Enable Non-Interactive Bubblewrap
+        run: |
+          echo "export CI=true" >> $GITHUB_ENV
+          echo "export BUBBLEWRAP_NO_PROMPT=true" >> $GITHUB_ENV
+          echo "export BUBBLEWRAP_FORCE_NO_JDK=true" >> $GITHUB_ENV
+
+      - name: Restore Keystore
+        env:
+          KEYSTORE_P12_BASE64: ${{ secrets.KEYSTORE_P12_BASE64 }}
         run: echo "$KEYSTORE_P12_BASE64" | base64 --decode > powertech.p12
 
       - name: Bubblewrap Init
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           bubblewrap init \
             --manifest=https://powertech0417.github.io/Cv_ap/manifest.json \
-            --noPrompt \
             --skipPwaValidation \
             --signingKey=powertech.p12 \
             --storePassword=$KEYSTORE_PASSWORD \
             --keyAlias=$KEY_ALIAS \
             --keyPassword=$KEY_PASSWORD \
-          || echo "Already initialized"
+            --nonInteractive \
+          || echo "Init step already done."
 
       - name: Bubblewrap Build
         run: |
-          bubblewrap build --noPrompt
+          bubblewrap build --nonInteractive
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
