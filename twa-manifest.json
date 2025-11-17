@@ -1,23 +1,25 @@
 {
+  "packageId": "com.powertech.cvapp",
+  "host": "powertech0417.github.io",
   "name": "CV AP",
-  "short_name": "CV AP",
-  "start_url": "/Cv_ap/",
-  "scope": "/Cv_ap/",
-  "display": "standalone",
+  "launcherName": "CV AP",
+  "themeColor": "#000000",
+  "backgroundColor": "#000000",
+  "startUrl": "/Cv_ap/",
+  "iconUrl": "https://powertech0417.github.io/Cv_ap/icons/icon-512.png",
+  "navigationColor": "#000000",
+  "navigationColorDark": "#000000",
+  "navigationDividerColor": "#000000",
+  "navigationDividerColorDark": "#000000",
+  "enableNotifications": true,
   "orientation": "portrait",
-  "background_color": "#000000",
-  "theme_color": "#000000",
-  "description": "CV AP Progressive Web Application",
-  "icons": [
-    {
-      "src": "/Cv_ap/icons/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "/Cv_ap/icons/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    }
-  ]
+  "display": "standalone",
+  "signature": {
+    "sha256CertFingerprints": []
+  },
+  "shortcutItems": [],
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "generatedAppVersionCode": 1,
+  "fallbackType": "customtabs"
 }
