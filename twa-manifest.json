@@ -3,23 +3,17 @@
   "host": "powertech0417.github.io",
   "name": "CV AP",
   "launcherName": "CV AP",
-  "display": "standalone",
-  "themeColor": "#000000",
-  "backgroundColor": "#000000",
   "startUrl": "/Cv_ap/",
   "iconUrl": "https://powertech0417.github.io/Cv_ap/icons/icon-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "themeColor": "#000000",
   "navigationColor": "#000000",
   "navigationColorDark": "#000000",
-  "navigationDividerColor": "#000000",
-  "navigationDividerColorDark": "#000000",
-  "enableNotifications": true,
-  "orientation": "portrait",
-  "signature": {
-    "sha256CertFingerprints": []
-  },
-  "appVersionName": "1.0.0",
-  "appVersionCode": 1,
-  "fallbackType": "customtabs",
-  "shortcuts": [],
-  "generatorApp": "bubblewrap-cli"
+  "backgroundColor": "#000000",
+  "signing": {
+    "default": {
+      "path": "release_keystore.jks",
+      "alias": "powertech"
+    }
+  }
 }
