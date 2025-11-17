@@ -1,7 +1,6 @@
-name: Build Android PWA (Bubblewrap)
+name: Android PWA Build
 
-on:
-  workflow_dispatch:
+on: workflow_dispatch
 
 jobs:
   build:
@@ -11,70 +10,39 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ------------------------------------------------------------
-      # 0. 禁用 Bubblewrap 所有互动模式（最关键）
-      # ------------------------------------------------------------
-      - name: Disable Bubblewrap Interactive Mode
-        run: echo "BUBBLEWRAP_NON_INTERACTIVE=true" >> $GITHUB_ENV
+      - name: Disable Bubblewrap Interactive
+        run: |
+          echo "BUBBLEWRAP_NON_INTERACTIVE=true" >> $GITHUB_ENV
+          export BUBBLEWRAP_NON_INTERACTIVE=true
 
-      # ------------------------------------------------------------
-      # 1. Install Node.js
-      # ------------------------------------------------------------
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
 
-      # ------------------------------------------------------------
-      # 2. Install Bubblewrap
-      # ------------------------------------------------------------
       - name: Install Bubblewrap
         run: npm install -g @bubblewrap/cli
 
-      # ------------------------------------------------------------
-      # 3. Install JDK 17
-      # ------------------------------------------------------------
       - name: Install JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: "temurin"
           java-version: "17"
 
-      # ------------------------------------------------------------
-      # 4. Install Android SDK
-      # ------------------------------------------------------------
       - name: Install Android SDK
         uses: android-actions/setup-android@v3
 
-      # ------------------------------------------------------------
-      # 5. Bubblewrap Init (non-interactive)
-      # ------------------------------------------------------------
       - name: Bubblewrap Init
         run: |
-          bubblewrap init \
-            --manifest=https://powertech0417.github.io/generate_links/manifest.webmanifest \
-            --skipPwaDisplayModeCheck \
-            --use-notification-delegation \
-            --nonInteractive
+          bubblewrap init --manifest=https://powertech0417.github.io/generate_links/manifest.webmanifest --skipPwaDisplayModeCheck --use-notification-delegation --nonInteractive
 
-      # ------------------------------------------------------------
-      # 6. Bubblewrap Update (non-interactive)
-      # ------------------------------------------------------------
       - name: Bubblewrap Update
         run: |
-          bubblewrap update \
-            --manifest=https://powertech0417.github.io/generate_links/manifest.webmanifest \
-            --nonInteractive
+          bubblewrap update --manifest=https://powertech0417.github.io/generate_links/manifest.webmanifest --nonInteractive
 
-      # ------------------------------------------------------------
-      # 7. Build
-      # ------------------------------------------------------------
       - name: Build APK
         run: bubblewrap build
 
-      # ------------------------------------------------------------
-      # 8. Upload APK
-      # ------------------------------------------------------------
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
