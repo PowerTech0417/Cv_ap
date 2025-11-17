@@ -11,17 +11,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install JDK + Node + Bubblewrap
+      - name: Install Dependencies
         run: |
           sudo apt update
           sudo apt install -y openjdk-17-jdk
           npm install -g @bubblewrap/cli
-
-      - name: Enable Non-Interactive Bubblewrap
-        run: |
-          echo "export CI=true" >> $GITHUB_ENV
-          echo "export BUBBLEWRAP_NO_PROMPT=true" >> $GITHUB_ENV
-          echo "export BUBBLEWRAP_FORCE_NO_JDK=true" >> $GITHUB_ENV
 
       - name: Restore Keystore
         env:
@@ -30,23 +24,30 @@ jobs:
 
       - name: Bubblewrap Init
         env:
+          CI: "1"
+          BUBBLEWRAP_NO_PROMPT: "true"
+          BUBBLEWRAP_FORCE_NO_JDK: "true"
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           bubblewrap init \
             --manifest=https://powertech0417.github.io/Cv_ap/manifest.json \
-            --skipPwaValidation \
+            --skipPwaDisplayModeCheck \
             --signingKey=powertech.p12 \
             --storePassword=$KEYSTORE_PASSWORD \
             --keyAlias=$KEY_ALIAS \
             --keyPassword=$KEY_PASSWORD \
             --nonInteractive \
-          || echo "Init step already done."
+            --skipInstall
 
       - name: Bubblewrap Build
+        env:
+          CI: "1"
+          BUBBLEWRAP_NO_PROMPT: "true"
+          BUBBLEWRAP_FORCE_NO_JDK: "true"
         run: |
-          bubblewrap build --nonInteractive
+          bubblewrap build --nonInteractive --skipInstall
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
