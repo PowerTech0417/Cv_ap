@@ -1,0 +1,244 @@
+<!DOCTYPE html><html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🔐 OTT短网址生成器</title>
+<style>
+  body {
+    font-family: system-ui, sans-serif;
+    padding: 2em;
+    max-width: 600px;
+    margin: auto;
+    background: radial-gradient(circle at top, #0a1a3a, #000);
+    color: #fff;
+  }
+  h1 {
+    text-align: center;
+    background: linear-gradient(90deg, #00b7ff, #0078ff);
+    -webkit-background-clip: text;
+    color: transparent;
+    font-size: 1.8em;
+    font-weight: bold;
+    margin-bottom: 1em;
+    text-shadow: 0 0 12px #0078ff;
+  }
+  label { display: block; margin-top: 1em; font-weight: bold; }
+  input, button {
+    width: 100%;
+    padding: .8em;
+    margin-top: .5em;
+    border-radius: 10px;
+    border: 1px solid #0078ff;
+    font-size: 1em;
+  }
+  input {
+    background: #0d1b2a;
+    color: #fff;
+  }
+  .generate-btn {
+    background: linear-gradient(90deg, #ff004c, #ff7700);
+    color: #fff;
+    font-size: 1.1em;
+    cursor: pointer;
+    transition: 0.25s;
+    border: none;
+    box-shadow: 0 0 15px #ff3355;
+  }
+  .generate-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 25px #ff6600;
+    background: linear-gradient(90deg, #ff6600, #ff0033);
+  }
+  pre {
+    background: #0d1b2a;
+    padding: 1em;
+    border-radius: 10px;
+    word-break: break-all;
+    border: 1px solid #0078ff;
+    margin-top: 0.5em;
+  }
+  .time-btns {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 1em;
+    gap: 10px;
+  }
+  .time-btns button {
+    flex: 1;
+    background: linear-gradient(90deg, #0078ff, #00b7ff);
+    border: none;
+    box-shadow: 0 0 10px #0078ff;
+    transition: 0.25s;
+  }
+  .time-btns button:hover {
+    background: linear-gradient(90deg, #00b7ff, #0078ff);
+    transform: scale(1.05);
+  }
+  footer {
+    text-align: center;
+    margin-top: 2.5em;
+    font-size: 0.9em;
+    color: #00e0ff;
+    text-shadow: 0 0 12px #00e0ff;
+    animation: glow 3s ease-in-out infinite alternate;
+  }
+  @keyframes glow {
+    from { text-shadow: 0 0 8px #00e0ff, 0 0 16px #00e0ff; }
+    to { text-shadow: 0 0 20px #ff004c, 0 0 40px #ff6600; color: #ffddcc; }
+  }
+  .hidden { display: none !important; }
+  .lang-buttons {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 1.5em;
+  }
+  .lang-buttons button {
+    flex: 1;
+    background: linear-gradient(90deg, #0078ff, #00b7ff);
+    border: none;
+    padding: 0.7em;
+    border-radius: 10px;
+    cursor: pointer;
+    color: #fff;
+    font-weight: bold;
+    transition: 0.25s;
+  }
+  .lang-buttons button:hover {
+    transform: scale(1.05);
+    background: linear-gradient(90deg, #00b7ff, #0078ff);
+  }
+</style>
+</head>
+<body><h1>🔐OTT短网址生成器</h1><input id="secret" value="mySuperSecretKey" style="display:none">
+<input id="domain" value="https://powertech.ott-1f4.workers.dev/" style="display:none"><label>用户 UID</label> <input id="uid" placeholder="例如 user123">
+
+<label>过期日期时间（马来西亚时间）</label> <input id="exp" type="datetime-local">
+
+<div class="time-btns">
+  <button type="button" onclick="setExpiryMonths(1)">🗓️1个月</button>
+  <button type="button" onclick="setExpiryMonths(12)">📆 1年</button>
+  <button type="button" onclick="setExpiryMonths(1200)">♾️ 永久</button>
+</div><button class="generate-btn" onclick="generateFull()">🚀 生成签名并创建短网址</button>
+
+<pre id="output" class="hidden"></pre><h3>🔗 短网址</h3>
+<pre id="shortOutput">(生成中...)</pre>
+<button id="copyLongBtn" class="hidden" onclick="copyLongURL()">📋 复制长链接</button>
+<button id="copyShortBtn" class="hidden" onclick="copyShortURL()">📋 复制短网址</button>
+<button id="copyDescBtn" class="hidden" onclick="copyDescription()">📄 复制说明文字</button><div class="lang-buttons">
+  <button onclick="toggleLang('cn')">🇨🇳 中文</button>
+  <button onclick="toggleLang('en')">🇬🇧 English</button>
+  <button onclick="toggleLang('my')">🇲🇾 Melayu</button>
+</div><pre id="desc" class="hidden"></pre><footer>© 2025 @By PowerTech</footer><script>
+function getMalaysiaNow() {
+  const now = new Date();
+  return new Date(now.getTime() + 8 * 60 * 60 * 1000);
+}
+function setExpiryMonths(months) {
+  const expInput = document.getElementById("exp");
+  const malaysiaNow = getMalaysiaNow();
+  if (months >= 1200) malaysiaNow.setFullYear(malaysiaNow.getFullYear() + 100);
+  else malaysiaNow.setMonth(malaysiaNow.getMonth() + months);
+  expInput.value = malaysiaNow.toISOString().slice(0,16);
+}
+async function hmacSHA256(text, secret) {
+  const key = await crypto.subtle.importKey(
+    "raw", new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false, ["sign"]
+  );
+  const sigBuf = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(sigBuf)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+async function generateFull() {
+  try {
+    const uidEl = document.getElementById("uid");
+    const uid = uidEl && typeof uidEl.value === 'string' ? uidEl.value.trim() : '';
+    const secret = document.getElementById("secret").value.trim();
+    const domain = document.getElementById("domain").value.trim();
+    const expStr = document.getElementById("exp").value;
+    if (!uid || !expStr) {
+      alert("请填写 UID 与 到期时间。");
+      return;
+    }
+    const expLocal = new Date(expStr);
+    const expMillis = expLocal.getTime();
+    const text = `${uid}:${expMillis}`;
+    const sig = await hmacSHA256(text, secret);
+    const longURL = `${domain}?uid=${encodeURIComponent(uid)}&exp=${expMillis}&sig=${sig}`;
+
+    document.getElementById("output").textContent = longURL;
+    document.getElementById("copyLongBtn").classList.remove('hidden');
+
+    const res = await fetch("https://short.ott-eaf.workers.dev/", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ longURL })
+    });
+    const data = await res.json();
+    if (data.shortURL) {
+      document.getElementById("shortOutput").textContent = data.shortURL.replace(/^https?:\/\//, "");
+      document.getElementById("copyShortBtn").classList.remove('hidden');
+      document.getElementById("copyDescBtn").classList.remove('hidden');
+    } else {
+      alert("短链服务未返回短网址，请检查服务。");
+    }
+  } catch (err) {
+    alert("生成短链时发生错误，请查看控制台。");
+  }
+}
+function formatDateMY(date) {
+  return date.toLocaleDateString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", timeZone: "Asia/Kuala_Lumpur" });
+}
+function toggleLang(lang) {
+  const shortURL = document.getElementById("shortOutput").textContent.trim();
+  if (!shortURL || shortURL.includes("(生成中")) {
+    alert("请先生成短网址！");
+    return;
+  }
+  const uidEl = document.getElementById("uid");
+  const uid = uidEl && typeof uidEl.value === 'string' ? uidEl.value.trim() : '';
+  const now = getMalaysiaNow();
+  const expInputValue = document.getElementById("exp").value;
+  const exp = expInputValue ? new Date(expInputValue) : now;
+  const buyDate = formatDateMY(now);
+  const expDate = formatDateMY(exp);
+  const lastLine = `👤 User Name: ${uid || "(未填写)"}`;
+
+  let text = "";
+  if(lang === "cn") {
+   text = `🇨🇳 中文说明：\n\n📲 下载与安装 OTT 应用\n\n在 Play 商店 (Play Store)\n搜索并安装以下其中一个应用：\n\n🔵 OTT TV（电视版本）\n🟢 OTT PLAYER（手机版本）\n\n⚠️ 只需下载其中一个即可！\n\n📱 高级版APP下载链接：\n   https://bit.ly/tt1733  \n（如需使用更多功能，请下载高级版）  \n---\n🧭 使用步骤：\n\n1. 打开 OTT Player / TV 应用\n2. 点击右上角 设置 (Settings)\n3. 选择 Provider（供应商）\n4. 点击 Add Provider（添加供应商）\n5. 选择 Playlist（播放列表）\n6. 输入以下 URL 并点击 Apply（应用）\n\n📌 ✅ 1 个链接仅限 1 台设备使用！\n👇👇播放列表 URL 链接👇👇\n👉 ${shortURL}\n\n⚠️ ⛔️ 同一链接多设备使用将会自动封禁！\n🚫 别用其他设备打开 ID 链接，会自动封禁！\n\n🕒 购买日期：${buyDate}\n📅 到期日期：${expDate}\n${lastLine}`;
+  } else if (lang === "en") {
+    text = `🇬🇧 English Instructions：\n\n📲 Download & Install OTT App\n\nGo to Play Store and search for OTT.\nDownload one of the following apps：\n\n🔵 OTT TV (for TV)\n🟢 OTT PLAYER (for mobile)\n\n⚠️ Download only ONE of them!\n📱 Premium APP download link：\n   https://bit.ly/tt1733\n(Download the premium version for extra features)\n---\n🧭 Setup Steps：\n\n1. Open OTT Player / TV app\n2. Tap the Settings icon\n3. Select Provider\n4. Tap Add Provider\n5. Choose Playlist\n6. Enter the URL below and click Apply\n\n📌 ✅ 1 URL for 1 Device Only!\n👇👇 Playlist URL Link 👇👇\n👉 ${shortURL}\n\n⚠️ ⛔️ If used on multiple devices, it will be auto-banned!\n🚫 Do NOT open the ID link on other devices — it will be auto-banned！\n\n🕒 Purchase Date：${buyDate}\n📅 Expiry Date：${expDate}\n${lastLine}`;
+  } else {
+    text = `🇲🇾 Bahasa Melayu：\n\n📲 Muat Turun & Pasang Aplikasi OTT\n\nBuka Play Store dan cari “OTT”\nPasang salah satu aplikasi berikut：\n\n🔵 OTT TV (Versi TV)\n🟢 OTT PLAYER (Versi telefon)\n\n⚠️ Muat turun satu sahaja!\n📱 Pautan muat turun APP Premium：\n   https://bit.ly/tt1733\n(Muat turun versi premium untuk ciri tambahan)\n---\n🧭 Langkah Penggunaan：\n\n1. Buka aplikasi OTT Player / TV\n2. Tekan ikon Tetapan (Settings)\n3. Pilih Provider (Penyedia)\n4. Tekan Add Provider (Tambah Penyedia)\n5. Pilih Playlist (Senarai Main)\n6. Masukkan URL di bawah dan tekan Apply\n\n📌 ✅ 1 URL hanya untuk 1 peranti sahaja!\n👇👇 Playlist Pautan Akaun URL 👇👇\n👉 ${shortURL}\n\n⚠️ ⛔️ Jika digunakan pada lebih daripada satu peranti, akaun akan diharamkan！\n🚫 Jangan buka pautan ID pada peranti lain — ia akan diharamkan secara automatik！\n\n🕒 Tarikh Pembelian：${buyDate}\n📅 Tarikh Tamat：${expDate}\n${lastLine}`;
+  }
+  const desc = document.getElementById("desc");
+  desc.textContent = text;
+  desc.classList.remove("hidden");
+}
+async function copyLongURL() {
+  const text = document.getElementById("output").textContent.trim();
+  if (!text) return;
+  try { await navigator.clipboard.writeText(text); } catch {}
+}
+async function copyShortURL() {
+  const text = document.getElementById("shortOutput").textContent.trim();
+  try { await navigator.clipboard.writeText(text); } catch {}
+}
+async function copyDescription() {
+  const text = document.getElementById("desc").textContent.trim();
+  if (!text) return;
+  try { await navigator.clipboard.writeText(text); } catch {}
+}
+
+// === 修复 copyLongURL：放在全局、确保可调用 ===
+async function copyLongURL() {
+  const text = document.getElementById("output").textContent.trim();
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch (e) {}
+}
+
+</script></body>
+</html>
