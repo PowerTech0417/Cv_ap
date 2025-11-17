@@ -1,0 +1,65 @@
+name: Build Android TWA
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ---- Install Bubblewrap CLI ----
+      - name: Install Bubblewrap
+        run: sudo npm install -g @bubblewrap/cli
+
+      # ---- Non-interactive init (核心关键！) ----
+      - name: Bubblewrap Init Non-Interactive
+        run: |
+          bubblewrap init \
+            --non-interactive \
+            --agree-to-android-sdk-license
+
+      # ---- Fix Android SDK cmdline-tools issue ----
+      - name: Fix cmdline-tools Structure
+        run: |
+          ANDROID_SDK="$HOME/.bubblewrap/android-sdk"
+          if [ -d "$ANDROID_SDK/cmdline-tools/latest/latest" ]; then
+            mv "$ANDROID_SDK/cmdline-tools/latest/latest" "$ANDROID_SDK/cmdline-tools/tmp"
+            rm -rf "$ANDROID_SDK/cmdline-tools/latest"
+            mv "$ANDROID_SDK/cmdline-tools/tmp" "$ANDROID_SDK/cmdline-tools/latest"
+          fi
+
+      # ---- OPTIONAL: Auto-generate keystore (enable if needed) ----
+      - name: Generate Android Keystore
+        run: |
+          keytool -genkeypair \
+            -alias twaKey \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -keystore my-release-key.jks \
+            -storepass 123456 \
+            -keypass 123456 \
+            -dname "CN=Example, OU=IT, O=Company, L=SG, S=SG, C=SG"
+
+      # ---- Build Signed APK ----
+      - name: Build TWA APK
+        env:
+          KEYSTORE_FILE: my-release-key.jks
+          KEYSTORE_PASSWORD: 123456
+          KEY_PASSWORD: 123456
+        run: |
+          bubblewrap build \
+            --keystore=$KEYSTORE_FILE \
+            --store-pass=$KEYSTORE_PASSWORD \
+            --key-pass=$KEY_PASSWORD
+
+      # ---- Upload final APK ----
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: twa-apk
+          path: app-release-signed.apk
