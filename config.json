@@ -1,28 +1,12 @@
 {
-  "packageId": "com.generate.links",
-  "name": "下载链接生成器",
-  "launcherName": "LinkGen",
-  "startUrl": "https://powertech0417.github.io/Cv_ap/",
-  "host": "powertech0417.github.io",
-  "themeColor": "#0a0f1c",
-  "navigationColor": "#0a0f1c",
-  "backgroundColor": "#02040a",
-  "display": "standalone",
-  "orientation": "portrait",
-  "enableNotifications": true,
-  "generatorApp": "bubblewrap-cli",
-  "shortcutItems": [],
-  "fingerprint": [],
-  "maskableIcon": "icons/icon-maskable.png",
-  "monochromeIcon": "icons/icon-192.png",
-  "splashScreenFadeOutDuration": 300,
-  "webManifestUrl": "https://powertech0417.github.io/Cv_ap/manifest.webmanifest",
-  "features": {
-    "locationDelegation": {
-      "enabled": true
-    },
-    "playBilling": {
-      "enabled": false
-    }
+  "androidSdkPath": "/home/runner/android-sdk",
+  "jdkPath": "/usr/lib/jvm/temurin-17-jdk-amd64",
+  "keytoolPath": "keytool",
+  "bundletoolPath": "bundletool",
+  "zipalignPath": "zipalign",
+  "apksignerPath": "apksigner",
+  "gradlePath": "./gradlew",
+  "chromeos": {
+    "enabled": false
   }
 }
