@@ -16,7 +16,7 @@
   "maskableIcon": "icons/icon-maskable.png",
   "monochromeIcon": "icons/icon-192.png",
   "splashScreenFadeOutDuration": 300,
-  "webManifestUrl": "https://powertech0417.github.io/generate_links/manifest.webmanifest",
+  "webManifestUrl": "https://powertech0417.github.io/Cv_ap/manifest.webmanifest",
   "features": {
     "locationDelegation": {
       "enabled": true
