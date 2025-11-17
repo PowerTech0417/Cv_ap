@@ -18,7 +18,7 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      # Install Android SDK (no prompt)
+      # Install Android SDK
       - name: Install Android SDK
         run: |
           sudo apt-get update
@@ -34,18 +34,13 @@ jobs:
           echo "$HOME/android-sdk/platform-tools" >> $GITHUB_PATH
           echo "$HOME/android-sdk/build-tools/34.0.0" >> $GITHUB_PATH
 
-      # Install Bubblewrap
       - name: Install Bubblewrap
         run: npm install -g @bubblewrap/cli
 
-      # Non-interactive Init (no prompt)
-      - name: Initialize TWA Project
+      # ⬇⬇⬇ 解决所有互动问题：使用 update 而不是 init
+      - name: Update TWA Project
         run: |
-          bubblewrap init \
-            --manifest=https://powertech0417.github.io/generate_links/manifest.webmanifest \
-            --skipPwaDisplayModeCheck \
-            --use-notification-delegation
+          bubblewrap update --manifest=https://powertech0417.github.io/generate_links/manifest.webmanifest
 
-      # Build APK / AAB
       - name: Build TWA App
         run: bubblewrap build
