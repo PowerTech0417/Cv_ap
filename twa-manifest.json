@@ -1,0 +1,25 @@
+{
+  "packageId": "com.generate.links",
+  "host": "powertech0417.github.io",
+  "name": "下载链接生成器",
+  "launcherName": "LinkGen",
+  "applicationId": "com.generate.links",
+  "startUrl": "/Cv_ap/",
+  "display": "standalone",
+  "themeColor": "#0a0f1c",
+  "navigationColor": "#0a0f1c",
+  "navigationColorDark": "#000000",
+  "navigationDividerColor": "#000000",
+  "backgroundColor": "#02040a",
+  "enableNotifications": true,
+  "handleLinks": "all",
+  "orientation": "portrait",
+  "shortcuts": [],
+  "signingKey": {
+    "path": "my-release-key.jks",
+    "alias": "twaKey"
+  },
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://powertech0417.github.io/Cv_ap/manifest.webmanifest",
+  "fallbackType": "customtabs"
+}
