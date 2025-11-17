@@ -2,9 +2,6 @@ name: Build Android PWA (Bubblewrap)
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
 
 jobs:
   build:
@@ -15,7 +12,13 @@ jobs:
         uses: actions/checkout@v4
 
       # ------------------------------------------------------------
-      # 1. 安装 Node.js (Bubblewrap 必须要 Node 环境)
+      # 0. 禁用 Bubblewrap 所有互动模式（最关键）
+      # ------------------------------------------------------------
+      - name: Disable Bubblewrap Interactive Mode
+        run: echo "BUBBLEWRAP_NON_INTERACTIVE=true" >> $GITHUB_ENV
+
+      # ------------------------------------------------------------
+      # 1. Install Node.js
       # ------------------------------------------------------------
       - name: Install Node.js
         uses: actions/setup-node@v4
@@ -23,13 +26,13 @@ jobs:
           node-version: "20"
 
       # ------------------------------------------------------------
-      # 2. 安装 Bubblewrap CLI
+      # 2. Install Bubblewrap
       # ------------------------------------------------------------
       - name: Install Bubblewrap
         run: npm install -g @bubblewrap/cli
 
       # ------------------------------------------------------------
-      # 3. 安装 JDK 17（必须，App 构建需要 Java）
+      # 3. Install JDK 17
       # ------------------------------------------------------------
       - name: Install JDK 17
         uses: actions/setup-java@v4
@@ -38,13 +41,13 @@ jobs:
           java-version: "17"
 
       # ------------------------------------------------------------
-      # 4. 设置 Android SDK（Bubblewrap 构建 APK 必须）
+      # 4. Install Android SDK
       # ------------------------------------------------------------
       - name: Install Android SDK
         uses: android-actions/setup-android@v3
 
       # ------------------------------------------------------------
-      # 5. 初始化 Bubblewrap (无交互模式)
+      # 5. Bubblewrap Init (non-interactive)
       # ------------------------------------------------------------
       - name: Bubblewrap Init
         run: |
@@ -55,7 +58,7 @@ jobs:
             --nonInteractive
 
       # ------------------------------------------------------------
-      # 6. 更新 Bubblewrap 项目（无交互模式）
+      # 6. Bubblewrap Update (non-interactive)
       # ------------------------------------------------------------
       - name: Bubblewrap Update
         run: |
@@ -64,16 +67,16 @@ jobs:
             --nonInteractive
 
       # ------------------------------------------------------------
-      # 7. 构建 Android APK / AAB
+      # 7. Build
       # ------------------------------------------------------------
       - name: Build APK
         run: bubblewrap build
 
       # ------------------------------------------------------------
-      # 8. 上传 APK 作为 Artifacts
+      # 8. Upload APK
       # ------------------------------------------------------------
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: generated-apk
+          name: app-release
           path: build/*.apk
