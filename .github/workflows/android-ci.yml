@@ -42,7 +42,7 @@ jobs:
       - name: Bubblewrap Init
         run: |
           bubblewrap init \
-            --manifest=https://powertech0417.github.io/generate_links/manifest.webmanifest \
+            --manifest=https://powertech0417.github.io/Cv_ap/manifest.webmanifest \
             --skipPwaDisplayModeCheck \
             --use-notification-delegation
 
@@ -50,7 +50,7 @@ jobs:
       - name: Bubblewrap Update
         run: |
           bubblewrap update \
-            --manifest=https://powertech0417.github.io/generate_links/manifest.webmanifest
+            --manifest=https://powertech0417.github.io/Cv_ap/manifest.webmanifest
 
       # Build APK
       - name: Build APK
