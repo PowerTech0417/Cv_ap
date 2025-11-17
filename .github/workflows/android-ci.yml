@@ -1,4 +1,4 @@
-name: Build Android TWA
+name: Build TWA
 
 on:
   workflow_dispatch:
@@ -8,58 +8,44 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      # ---- Install Bubblewrap CLI ----
-      - name: Install Bubblewrap
-        run: sudo npm install -g @bubblewrap/cli
+      # Install JDK 17
+      - name: Install JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
 
-      # ---- Non-interactive init (核心关键！) ----
-      - name: Bubblewrap Init Non-Interactive
+      # Install Android SDK (no prompt)
+      - name: Install Android SDK
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y unzip wget
+          mkdir -p $HOME/android-sdk
+          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmd.zip
+          unzip cmd.zip -d $HOME/android-sdk
+          yes | $HOME/android-sdk/cmdline-tools/bin/sdkmanager --sdk_root=$HOME/android-sdk "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+
+      - name: Add SDK to PATH
+        run: |
+          echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
+          echo "$HOME/android-sdk/platform-tools" >> $GITHUB_PATH
+          echo "$HOME/android-sdk/build-tools/34.0.0" >> $GITHUB_PATH
+
+      # Install Bubblewrap
+      - name: Install Bubblewrap
+        run: npm install -g @bubblewrap/cli
+
+      # Non-interactive Init (no prompt)
+      - name: Initialize TWA Project
         run: |
           bubblewrap init \
-            --non-interactive \
-            --agree-to-android-sdk-license
+            --manifest=https://powertech0417.github.io/generate_links/manifest.webmanifest \
+            --skipPwaDisplayModeCheck \
+            --use-notification-delegation
 
-      # ---- Fix Android SDK cmdline-tools issue ----
-      - name: Fix cmdline-tools Structure
-        run: |
-          ANDROID_SDK="$HOME/.bubblewrap/android-sdk"
-          if [ -d "$ANDROID_SDK/cmdline-tools/latest/latest" ]; then
-            mv "$ANDROID_SDK/cmdline-tools/latest/latest" "$ANDROID_SDK/cmdline-tools/tmp"
-            rm -rf "$ANDROID_SDK/cmdline-tools/latest"
-            mv "$ANDROID_SDK/cmdline-tools/tmp" "$ANDROID_SDK/cmdline-tools/latest"
-          fi
-
-      # ---- OPTIONAL: Auto-generate keystore (enable if needed) ----
-      - name: Generate Android Keystore
-        run: |
-          keytool -genkeypair \
-            -alias twaKey \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
-            -keystore my-release-key.jks \
-            -storepass 123456 \
-            -keypass 123456 \
-            -dname "CN=Example, OU=IT, O=Company, L=SG, S=SG, C=SG"
-
-      # ---- Build Signed APK ----
-      - name: Build TWA APK
-        env:
-          KEYSTORE_FILE: my-release-key.jks
-          KEYSTORE_PASSWORD: 123456
-          KEY_PASSWORD: 123456
-        run: |
-          bubblewrap build \
-            --keystore=$KEYSTORE_FILE \
-            --store-pass=$KEYSTORE_PASSWORD \
-            --key-pass=$KEY_PASSWORD
-
-      # ---- Upload final APK ----
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: twa-apk
-          path: app-release-signed.apk
+      # Build APK / AAB
+      - name: Build TWA App
+        run: bubblewrap build
