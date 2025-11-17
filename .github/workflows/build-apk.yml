@@ -25,13 +25,11 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
       
-    - name: Make gradlew executable
-      run: chmod +x ./gradlew
-      
-    - name: Build Release APK
+    - name: Build with Gradle
       run: |
-        ./gradlew assembleRelease
-      
+        # 直接使用 Gradle 命令而不是 gradlew
+        gradle assembleRelease --no-daemon
+        
     - name: Upload APK to Release
       uses: ncipollo/release-action@v1
       with:
