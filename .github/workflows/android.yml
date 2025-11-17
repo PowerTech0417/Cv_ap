@@ -1,51 +1,49 @@
-name: Build APK from Web
+name: Build APK
 
 on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-apk:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install JDK 17
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install Java (JDK 17)
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
 
-      - name: Install Bubblewrap
+      - name: Install Bubblewrap CLI
         run: npm install -g @bubblewrap/cli
 
-      - name: Clone Website (your GitHub Pages)
+      - name: Decode keystore
         run: |
-          git clone https://github.com/powertech0417/Cv_ap.git website
-          ls -R website
+          mkdir -p android-keystore
+          echo "$KEYSTORE_BASE64" | base64 --decode > android-keystore/powertech.p12
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
 
-      - name: Create Manifest
+      - name: Generate TWA Project
         run: |
-          bubblewrap init --manifest=https://powertech0417.github.io/Cv_ap/manifest.json
+          bubblewrap init --manifest=https://powertech0417.github.io/Cv_ap/manifest.json --nonInteractive
+          bubblewrap build --nonInteractive --signingKey=android-keystore/powertech.p12 \
+            --signingKeyAlias="${KEY_ALIAS}" \
+            --signingKeyPassword="${KEY_ALIAS_PASSWORD}"
+        env:
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_ALIAS_PASSWORD: ${{ secrets.KEY_ALIAS_PASSWORD }}
 
-      - name: Build APK
-        run: |
-          bubblewrap build
-
-      # 输出 APK 下载（Artifacts）
-      - name: Upload APK Artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: CvAP-APK
-          path: ./TWAProject/app-release-signed.apk
-
-      # 上传到 Release 方便下载
-      - name: Release APK
-        uses: softprops/action-gh-release@v2
-        with:
-          name: "Latest APK"
-          tag_name: "latest"
-          files: ./TWAProject/app-release-signed.apk
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: CV-AP-APK
+          path: "./app-release-signed.apk"
