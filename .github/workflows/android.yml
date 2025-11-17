@@ -32,10 +32,19 @@ jobs:
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
 
-      - name: Generate TWA Project
+      - name: Generate TWA Project (NO JDK prompt)
         run: |
-          bubblewrap init --manifest=https://powertech0417.github.io/Cv_ap/manifest.json --nonInteractive
-          bubblewrap build --nonInteractive --signingKey=android-keystore/powertech.p12 \
+          bubblewrap init \
+            --manifest=https://powertech0417.github.io/Cv_ap/manifest.json \
+            --nonInteractive \
+            --skipInstallJdk
+
+      - name: Build APK (signed)
+        run: |
+          bubblewrap build \
+            --nonInteractive \
+            --skipInstallJdk \
+            --signingKey=android-keystore/powertech.p12 \
             --signingKeyAlias="${KEY_ALIAS}" \
             --signingKeyPassword="${KEY_ALIAS_PASSWORD}"
         env:
