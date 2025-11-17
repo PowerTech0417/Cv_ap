@@ -1,0 +1,29 @@
+{
+  "name": "下载链接生成器",
+  "short_name": "LinkGen",
+  "theme_color": "#0a0f1c",
+  "background_color": "#02040a",
+  "display": "standalone",
+  "orientation": "portrait",
+  "start_url": "https://powertech0417.github.io/Cv_ap/",
+  "scope": "https://powertech0417.github.io/Cv_ap/",
+  "description": "一键生成短网址与签名的智能下载链接生成器。",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
