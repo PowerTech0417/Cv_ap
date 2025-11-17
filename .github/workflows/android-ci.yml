@@ -10,11 +10,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Disable Bubblewrap Interactive
-        run: |
-          echo "BUBBLEWRAP_NON_INTERACTIVE=true" >> $GITHUB_ENV
-          export BUBBLEWRAP_NON_INTERACTIVE=true
-
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
@@ -29,16 +24,23 @@ jobs:
           distribution: "temurin"
           java-version: "17"
 
+      - name: Export JAVA_HOME
+        run: echo "JAVA_HOME=${{ env.JAVA_HOME_17_X64 }}" >> $GITHUB_ENV
+
       - name: Install Android SDK
         uses: android-actions/setup-android@v3
 
       - name: Bubblewrap Init
         run: |
-          bubblewrap init --manifest=https://powertech0417.github.io/generate_links/manifest.webmanifest --skipPwaDisplayModeCheck --use-notification-delegation --nonInteractive
+          bubblewrap init \
+            --manifest=https://powertech0417.github.io/generate_links/manifest.webmanifest \
+            --skipPwaDisplayModeCheck \
+            --use-notification-delegation
 
       - name: Bubblewrap Update
         run: |
-          bubblewrap update --manifest=https://powertech0417.github.io/generate_links/manifest.webmanifest --nonInteractive
+          bubblewrap update \
+            --manifest=https://powertech0417.github.io/generate_links/manifest.webmanifest
 
       - name: Build APK
         run: bubblewrap build
