@@ -1,4 +1,4 @@
-name: Bubblewrap Build
+name: Build CV AP APK
 
 on:
   workflow_dispatch:
@@ -14,20 +14,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      # Install Node
+      - name: Install Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: 18
 
+      # Install Java
       - name: Install Java 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: 17
 
-      - name: Install Bubblewrap CLI
+      # Install Bubblewrap
+      - name: Install Bubblewrap
         run: npm install -g @bubblewrap/cli
 
+      # Install Android SDK
       - name: Install Android SDK
         run: |
           sudo apt-get update
@@ -36,30 +40,46 @@ jobs:
           cd $HOME/android-sdk
           wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O tools.zip
           unzip tools.zip
-          yes | $HOME/android-sdk/cmdline-tools/bin/sdkmanager --sdk_root=$HOME/android-sdk \
-            "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+          yes | $HOME/android-sdk/cmdline-tools/bin/sdkmanager --sdk_root=$HOME/android-sdk "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
-      - name: Set ANDROID_HOME
+      - name: Export ANDROID_HOME
         run: |
           echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
           echo "$HOME/android-sdk/platform-tools" >> $GITHUB_PATH
           echo "$HOME/android-sdk/build-tools/34.0.0" >> $GITHUB_PATH
 
-      - name: Build APK with Bubblewrap
-        env:
-          BUBBLEWRAP_ACCEPT_TERMS: true
-          BUBBLEWRAP_FORCE_NO_INTERACTIVE: true
-          BUBBLEWRAP_SKIP_JDK_INSTALL: true
-          BUBBLEWRAP_NO_JDK: true   # ⬅️ 关键补丁，强制禁用 JDK 提示
-        run: |
-          echo "🚀 Start TWA Build..."
-          bubblewrap build --non-interactive --manifest=twa-manifest.json
+      # Decode keystore
+      - name: Decode signing key
+        run: echo "${{ secrets.SIGNING_KEY }}" | base64 --decode > release_keystore.jks
 
+      # IMPORTANT: Create TWA project (non-interactive)
+      - name: Bubblewrap Init (non-interactive)
+        env:
+          BUBBLEWRAP_FORCE_NO_INTERACTIVE: true
+          BUBBLEWRAP_ACCEPT_TERMS: true
+          BUBBLEWRAP_SKIP_JDK_INSTALL: true
+        run: |
+          bubblewrap init \
+            --nonInteractive \
+            --skipPwaValidation \
+            --manifest=https://powertech0417.github.io/Cv_ap/manifest.json
+
+      # Build APK (non-interactive)
+      - name: Build APK
+        env:
+          BUBBLEWRAP_FORCE_NO_INTERACTIVE: true
+          BUBBLEWRAP_ACCEPT_TERMS: true
+          BUBBLEWRAP_SKIP_JDK_INSTALL: true
+        run: |
+          bubblewrap build \
+            --keyStore=release_keystore.jks \
+            --keyAlias=powertech \
+            --storePassword="${{ secrets.KEYSTORE_PASSWORD }}" \
+            --keyPassword="${{ secrets.KEY_PASSWORD }}"
+
+      # Upload APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: bubblewrap-apk
-          path: |
-            app-release.apk
-            app-release-signed.apk
-            **/*.apk
+          name: CV_AP_APK
+          path: ./app-release-signed.apk
