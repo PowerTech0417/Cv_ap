@@ -2,7 +2,7 @@
   "name": "CV AP",
   "short_name": "CV AP",
   "description": "CV AP Progressive Web Application",
-  "start_url": "/Cv_ap/",
+  "start_url": "/Cv_ap/?source=pwa",
   "scope": "/Cv_ap/",
   "display": "standalone",
   "orientation": "portrait",
@@ -12,12 +12,14 @@
     {
       "src": "/Cv_ap/icons/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "/Cv_ap/icons/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
