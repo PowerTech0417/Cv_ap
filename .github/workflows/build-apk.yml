@@ -1,33 +1,47 @@
-name: Android CI - Ultimate
+name: Android APK Builder
 
-on: [push, pull_request]
+on:
+  push:
+    branches: 
+      - main
+      - master
+  pull_request:
+    branches: 
+      - main
+      - master
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Build without gradlew
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          
+      - name: Setup Android environment
+        uses: android-actions/setup-android@v3
+        
+      - name: Make gradlew executable
+        run: chmod +x gradlew || true
+        
+      - name: Build application
         run: |
-          # 删除有问题的 gradlew
-          rm -f gradlew gradlew.bat
+          if [ -f "gradlew" ]; then
+            ./gradlew assembleDebug
+          else
+            gradle assembleDebug
+          fi
           
-          # 直接使用 gradle 命令
-          gradle init --type basic --dsl groovy --project-name myapp --package myapp
-          
-          # 构建项目
-          gradle build --no-daemon --stacktrace || echo "构建完成"
-          
-    - name: Create success marker
-      run: echo "✅ 构建流程完成（绕过 gradlew 问题）"
-      
-    - name: Upload any build outputs
-      uses: actions/upload-artifact@v4
-      with:
-        name: build-outputs
-        path: |
-          build/
-          app/build/
-        if-no-files-found: ignore
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-app
+          path: app/build/outputs/apk/**/*.apk
+          retention-days: 7
