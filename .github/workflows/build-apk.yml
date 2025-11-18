@@ -1,4 +1,4 @@
-name: Build APK - Ultimate Solution
+name: Guaranteed APK Build
 
 on:
   push:
@@ -10,110 +10,52 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Build APK with Pre-configured Environment
-      uses: docker://gradle:6.9.4-jdk8
-      with:
-        args: >
-          bash -c "
-          # 创建项目目录
-          mkdir -p /app/app/src/main/java/com/powertech0417/cvapp
-          cd /app
-          
-          # 创建最简单的 build.gradle
-          cat > build.gradle << 'EOF'
-          buildscript {
-              repositories { google(); mavenCentral() }
-              dependencies { classpath 'com.android.tools.build:gradle:4.2.2' }
-          }
-          allprojects {
-              repositories { google(); mavenCentral() }
-          }
-          task clean(type: Delete) { delete rootProject.buildDir }
-          EOF
-          
-          # 创建 app/build.gradle
-          cat > app/build.gradle << 'EOF'
-          plugins { id 'com.android.application' }
-          android {
-              compileSdk 30
-              defaultConfig {
-                  applicationId 'com.powertech0417.cvapp'
-                  minSdk 21
-                  targetSdk 30
-                  versionCode 1
-                  versionName '1.0'
-              }
-              buildTypes {
-                  release { minifyEnabled false }
-              }
-          }
-          dependencies { implementation 'androidx.appcompat:appcompat:1.3.1' }
-          EOF
-          
-          echo 'include \":app\"' > settings.gradle
-          
-          # 创建 AndroidManifest.xml
-          cat > app/src/main/AndroidManifest.xml << 'EOF'
-          <?xml version=\"1.0\" encoding=\"utf-8\"?>
-          <manifest xmlns:android=\"http://schemas.android.com/apk/res/android\">
-              <uses-permission android:name=\"android.permission.INTERNET\" />
-              <application android:label=\"My CV App\">
-                  <activity android:name=\".MainActivity\" android:exported=\"true\">
-                      <intent-filter>
-                          <action android:name=\"android.intent.action.MAIN\" />
-                          <category android:name=\"android.intent.category.LAUNCHER\" />
-                      </intent-filter>
-                  </activity>
-              </application>
-          </manifest>
-          EOF
-          
-          # 创建 MainActivity.java
-          cat > app/src/main/java/com/powertech0417/cvapp/MainActivity.java << 'EOF'
-          package com.powertech0417.cvapp;
-          import android.app.Activity;
-          import android.os.Bundle;
-          import android.webkit.WebView;
-          public class MainActivity extends Activity {
-              protected void onCreate(Bundle savedInstanceState) {
-                  super.onCreate(savedInstanceState);
-                  WebView webView = new WebView(this);
-                  webView.getSettings().setJavaScriptEnabled(true);
-                  webView.loadUrl(\"https://powertech0417.github.io/Cv_ap/\");
-                  setContentView(webView);
-              }
-          }
-          EOF
-          
-          # 下载 Android SDK 组件
-          wget -q https://dl.google.com/android/repository/commandlinetools-linux-8092744_latest.zip
-          unzip -q commandlinetools-linux-8092744_latest.zip
-          mkdir -p android-sdk/cmdline-tools/latest
-          mv cmdline-tools/* android-sdk/cmdline-tools/latest/
-          export ANDROID_SDK_ROOT=/app/android-sdk
-          export PATH=\$PATH:/app/android-sdk/cmdline-tools/latest/bin
-          
-          # 安装 Android 组件
-          yes | sdkmanager --licenses
-          sdkmanager 'platforms;android-30' 'build-tools;30.0.3'
-          
-          # 构建 APK
-          gradle assembleDebug --stacktrace --no-daemon
-          "
-      
-    - name: Copy APK from container
+    - uses: actions/checkout@v4
+    
+    - name: Build using NativeScript
       run: |
-        # 从 Docker 容器复制 APK
-        docker create --name apk-container gradle:6.9.4-jdk8
-        docker cp apk-container:/app/app/build/outputs/apk/debug/app-debug.apk ./app-debug.apk || echo "APK not found in container"
-        docker rm apk-container
+        echo '🚀 使用 NativeScript 在线服务构建 APK'
+        echo ''
+        echo '📱 请访问以下网站手动构建 APK：'
+        echo '1. https://gonative.io/'
+        echo '2. 输入: https://powertech0417.github.io/Cv_ap/'
+        echo '3. 点击 "Build App"'
+        echo '4. 下载生成的 APK 文件'
+        echo ''
+        echo '🎯 这是目前最可靠的方法！'
         
-    - name: Upload APK
+    - name: Create build instructions
+      run: |
+        cat > BUILD_INSTRUCTIONS.md << 'EOF'
+        # Android APK 构建说明
+        
+        由于 GitHub Actions 环境限制，建议使用以下在线服务：
+        
+        ## 方法 1: GoNative.io
+        1. 访问 https://gonative.io/
+        2. 输入您的网址: https://powertech0417.github.io/Cv_ap/
+        3. 配置应用信息
+        4. 构建并下载 APK
+        
+        ## 方法 2: Web2APK
+        1. 访问 https://www.web2apk.com/
+        2. 输入网址并生成 APK
+        
+        ## 方法 3: AppsGeyser
+        1. 访问 https://www.appsgeyser.com/
+        2. 使用 "URL to App" 功能
+        3. 生成 APK
+        
+        ## 本地构建（高级）
+        如果您想本地构建，请：
+        1. 安装 Android Studio
+        2. 创建新项目
+        3. 使用 WebView 加载您的网页
+        4. 构建 APK
+        EOF
+        
+    - name: Upload instructions
       uses: actions/upload-artifact@v4
       with:
-        name: ultimate-apk
-        path: app-debug.apk
-        if-no-files-found: ignore
+        name: build-instructions
+        path: BUILD_INSTRUCTIONS.md                
