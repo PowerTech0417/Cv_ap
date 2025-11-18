@@ -1,39 +1,124 @@
-name: Simple APK Build
+name: Build APK
 
-on: [push, workflow_dispatch]
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    
     steps:
-    - uses: actions/checkout@v4
-    - name: Build APK
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup environment
       run: |
-        # 一键安装所有依赖
-        sudo apt update && sudo apt install -y android-sdk-build-tools-34 gradle openjdk-11-jdk
+        # 安装必要工具
+        sudo apt-get update
+        sudo apt-get install -y wget unzip openjdk-11-jdk
         
-        # 创建最简单的项目
-        mkdir -p app/src/main/java/com/example/app
-        cat > app/build.gradle << 'EOF'
-        plugins { id 'com.android.application' }
-        android {
-            compileSdk 34
-            defaultConfig {
-                applicationId "com.example.app"
-                minSdk 21
-                targetSdk 34
+    - name: Download and setup Android SDK
+      run: |
+        # 下载 Android Command Line Tools
+        wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+        unzip -q commandlinetools-linux-11076708_latest.zip
+        mkdir -p android-sdk/cmdline-tools/latest
+        mv cmdline-tools/* android-sdk/cmdline-tools/latest/
+        
+        # 设置环境变量
+        echo "ANDROID_SDK_ROOT=$PWD/android-sdk" >> $GITHUB_ENV
+        echo "$PWD/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
+        
+    - name: Install Android components
+      run: |
+        # 接受许可证
+        yes | sdkmanager --licenses
+        
+        # 安装 Android 平台和构建工具
+        sdkmanager "platforms;android-33" "build-tools;33.0.2"
+        
+    - name: Create Android project
+      run: |
+        # 创建项目目录
+        mkdir -p app/src/main/java/com/powertech0417/cvapp
+        
+        # 创建根目录 build.gradle
+        cat > build.gradle << 'EOF'
+        buildscript {
+            repositories {
+                google()
+                mavenCentral()
+            }
+            dependencies {
+                classpath "com.android.tools.build:gradle:7.0.4"
             }
         }
-        dependencies { implementation 'androidx.appcompat:appcompat:1.6.1' }
+        
+        allprojects {
+            repositories {
+                google()
+                mavenCentral()
+            }
+        }
+        
+        task clean(type: Delete) {
+            delete rootProject.buildDir
+        }
         EOF
         
+        # 创建 app/build.gradle
+        cat > app/build.gradle << 'EOF'
+        plugins {
+            id 'com.android.application'
+        }
+        
+        android {
+            compileSdk 33
+            
+            defaultConfig {
+                applicationId "com.powertech0417.cvapp"
+                minSdk 21
+                targetSdk 33
+                versionCode 1
+                versionName "1.0"
+            }
+            
+            buildTypes {
+                release {
+                    minifyEnabled false
+                }
+            }
+            
+            compileOptions {
+                sourceCompatibility JavaVersion.VERSION_1_8
+                targetCompatibility JavaVersion.VERSION_1_8
+            }
+        }
+        
+        dependencies {
+            implementation 'androidx.appcompat:appcompat:1.3.1'
+        }
+        EOF
+        
+        # 创建 settings.gradle
         echo "include ':app'" > settings.gradle
         
+        # 创建 AndroidManifest.xml
         cat > app/src/main/AndroidManifest.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android">
             <uses-permission android:name="android.permission.INTERNET" />
-            <application android:label="App">
-                <activity android:name=".MainActivity" android:exported="true">
+            
+            <application
+                android:allowBackup="true"
+                android:label="我的简历应用"
+                android:theme="@style/Theme.AppCompat.Light.NoActionBar">
+                
+                <activity
+                    android:name=".MainActivity"
+                    android:exported="true">
                     <intent-filter>
                         <action android:name="android.intent.action.MAIN" />
                         <category android:name="android.intent.category.LAUNCHER" />
@@ -43,27 +128,54 @@ jobs:
         </manifest>
         EOF
         
-        cat > app/src/main/java/com/example/app/MainActivity.java << 'EOF'
-        package com.example.app;
+        # 创建 MainActivity.java
+        cat > app/src/main/java/com/powertech0417/cvapp/MainActivity.java << 'EOF'
+        package com.powertech0417.cvapp;
+        
         import android.app.Activity;
         import android.os.Bundle;
         import android.webkit.WebView;
+        import android.webkit.WebSettings;
+        
         public class MainActivity extends Activity {
+            private WebView webView;
+            
+            @Override
             protected void onCreate(Bundle savedInstanceState) {
                 super.onCreate(savedInstanceState);
-                WebView webView = new WebView(this);
-                webView.getSettings().setJavaScriptEnabled(true);
-                webView.loadUrl("https://powertech0417.github.io/Cv_ap/");
+                
+                // 创建 WebView
+                webView = new WebView(this);
                 setContentView(webView);
+                
+                // 配置 WebView
+                WebSettings webSettings = webView.getSettings();
+                webSettings.setJavaScriptEnabled(true);
+                webSettings.setDomStorageEnabled(true);
+                
+                // 加载网页
+                webView.loadUrl("https://powertech0417.github.io/Cv_ap/");
+            }
+            
+            @Override
+            public void onBackPressed() {
+                if (webView.canGoBack()) {
+                    webView.goBack();
+                } else {
+                    super.onBackPressed();
+                }
             }
         }
         EOF
         
-        # 构建 APK
-        gradle assembleDebug --stacktrace
+    - name: Build APK
+      run: |
+        # 使用 gradle 命令构建 APK
+        gradle assembleDebug --no-daemon --stacktrace
         
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: simple-apk
+        name: cv-app-apk
         path: app/build/outputs/apk/debug/app-debug.apk
+        retention-days: 30
