@@ -29,10 +29,10 @@ jobs:
       run: |
         keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
         
-    - name: Build with Gradle directly
+    - name: Build with Gradle
       run: |
-        # 直接使用gradle命令，避免gradlew问题
-        gradle assembleRelease --no-daemon --stacktrace
+        chmod +x ./gradlew
+        ./gradlew assembleRelease --no-daemon --stacktrace
         
     - name: Upload APK to Release
       uses: ncipollo/release-action@v1
