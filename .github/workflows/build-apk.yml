@@ -22,17 +22,32 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
         
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
-      
+    - name: Install Android SDK and Gradle
+      run: |
+        # 安装 Android SDK
+        wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+        unzip commandlinetools-linux-9477386_latest.zip
+        mkdir -p android-sdk
+        mv cmdline-tools android-sdk/cmdline-tools
+        mv android-sdk/cmdline-tools android-sdk/cmdline-tools/latest
+        
+        # 安装必要的 Android 组件
+        yes | android-sdk/cmdline-tools/latest/bin/sdkmanager --install "platforms;android-34"
+        yes | android-sdk/cmdline-tools/latest/bin/sdkmanager --install "build-tools;34.0.0"
+        yes | android-sdk/cmdline-tools/latest/bin/sdkmanager --install "platform-tools"
+        
+        # 设置环境变量
+        echo "ANDROID_HOME=$PWD/android-sdk" >> $GITHUB_ENV
+        echo "$PWD/android-sdk/platform-tools" >> $GITHUB_PATH
+        
     - name: Create debug keystore
       run: |
         keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
         
-    - name: Build with Gradle
+    - name: Build APK with Gradle
       run: |
-        chmod +x ./gradlew
-        ./gradlew assembleRelease --no-daemon --stacktrace
+        # 直接使用系统安装的gradle
+        gradle assembleRelease --no-daemon --stacktrace --project-dir .
         
     - name: Upload APK to Release
       uses: ncipollo/release-action@v1
