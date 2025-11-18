@@ -4,13 +4,10 @@ on:
   push:
     tags:
       - 'v*'
-  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     
     steps:
     - name: Checkout code
@@ -22,34 +19,27 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
         
-    - name: Install Android SDK and Gradle
-      run: |
-        # 安装 Android SDK
-        wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-        unzip commandlinetools-linux-9477386_latest.zip
-        mkdir -p android-sdk
-        mv cmdline-tools android-sdk/cmdline-tools
-        mv android-sdk/cmdline-tools android-sdk/cmdline-tools/latest
-        
-        # 安装必要的 Android 组件
-        yes | android-sdk/cmdline-tools/latest/bin/sdkmanager --install "platforms;android-34"
-        yes | android-sdk/cmdline-tools/latest/bin/sdkmanager --install "build-tools;34.0.0"
-        yes | android-sdk/cmdline-tools/latest/bin/sdkmanager --install "platform-tools"
-        
-        # 设置环境变量
-        echo "ANDROID_HOME=$PWD/android-sdk" >> $GITHUB_ENV
-        echo "$PWD/android-sdk/platform-tools" >> $GITHUB_PATH
-        
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+      
     - name: Create debug keystore
       run: |
         keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
         
-    - name: Build APK with Gradle
+    - name: Build APK
       run: |
-        # 直接使用系统安装的gradle
-        gradle assembleRelease --no-daemon --stacktrace --project-dir .
+        # 删除有问题的gradlew文件
+        rm -f gradlew gradlew.bat
+        # 直接使用gradle构建
+        gradle assembleRelease --no-daemon --stacktrace
         
-    - name: Upload APK to Release
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-release
+        path: app/build/outputs/apk/release/*.apk
+        
+    - name: Create GitHub Release
       uses: ncipollo/release-action@v1
       with:
         artifacts: "app/build/outputs/apk/release/*.apk"
