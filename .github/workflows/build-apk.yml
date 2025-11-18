@@ -1,64 +1,74 @@
-name: Real APK Builder
+name: Android CI
 
-on:
-  push:
-    branches: [ main ]
-  workflow_dispatch:
+on: [push, pull_request]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Build Real APK with Capacitor
-      run: |
-        echo "🚀 开始构建真正的 APK..."
-        
-        # 安装 Node.js 和 Capacitor
-        curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-        sudo apt-get install -y nodejs
-        
-        # 创建 Capacitor 项目
-        npx @capacitor/create-app@latest my-app --web-dir dist --app-name "我的简历" --package-id "com.powertech0417.cvapp"
-        cd my-app
-        
-        # 配置 Capacitor
-        npm install @capacitor/android
-        npx cap add android
-        
-        # 修改配置以加载您的网页
-        cat > src/index.html << 'EOF'
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
-            <title>我的简历</title>
-            <script>
-                window.location.href = 'https://powertech0417.github.io/Cv_ap/';
-            </script>
-        </head>
-        <body>
-            <div style="text-align: center; padding: 50px;">
-                <h1>正在加载...</h1>
-                <p>如果页面没有自动跳转，请 <a href="https://powertech0417.github.io/Cv_ap/">点击这里</a></p>
-            </div>
-        </body>
-        </html>
-        EOF
-        
-        # 构建 Android APK
-        npx cap build android
-        
-        # 检查是否生成了 APK
-        if [ -f "android/app/build/outputs/apk/debug/app-debug.apk" ]; then
-            echo "🎉 APK 构建成功！"
-            cp android/app/build/outputs/apk/debug/app-debug.apk ../my-resume.apk
-        else
-            echo "❌ APK 构建失败，使用备选方案"
-        fi
-        
-    - name: Upload Real APK
-      uses: actions/upload
+      - uses: actions/checkout@v4
+      
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Setup Android SDK
+        run: |
+          # 安装 Android SDK
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+          unzip -q commandlinetools-linux-9477386_latest.zip
+          mkdir -p android-sdk/cmdline-tools/latest
+          mv cmdline-tools/* android-sdk/cmdline-tools/latest/
+          echo "ANDROID_SDK_ROOT=$PWD/android-sdk" >> $GITHUB_ENV
+          echo "$PWD/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          
+          # 安装必要的 Android 组件
+          yes | sdkmanager --licenses
+          sdkmanager "platforms;android-34" "build-tools;34.0.0"
+
+      - name: Create gradlew if missing
+        run: |
+          if [ ! -f "gradlew" ]; then
+            echo "创建 gradlew 文件..."
+            # 使用系统 gradle
+            gradle wrapper --gradle-version 8.2.1
+          fi
+          chmod +x gradlew
+
+      - name: Build with Gradle
+        run: |
+          # 尝试不同的构建任务
+          ./gradlew tasks | grep assemble || echo "没有找到assemble任务"
+          
+          # 尝试构建 debug APK
+          ./gradlew assembleDebug || ./gradlew build
+
+      - name: Find and Upload APK
+        run: |
+          # 查找所有 APK 文件
+          find . -name "*.apk" -type f | head -10
+          
+          # 检查常见的 APK 路径
+          if [ -f "app/build/outputs/apk/debug/app-debug.apk" ]; then
+            echo "找到 debug APK"
+            ls -la app/build/outputs/apk/debug/
+          elif [ -f "app/build/outputs/apk/foss/debug/app-foss-debug.apk" ]; then
+            echo "找到 foss debug APK"
+            ls -la app/build/outputs/apk/foss/debug/
+          else
+            echo "未找到标准 APK 文件"
+            find . -name "*.apk" -exec ls -la {} \;
+          fi
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: |
+            app/build/outputs/apk/**/*.apk
+            **/outputs/apk/**/*.apk
+          if-no-files-found: warn
