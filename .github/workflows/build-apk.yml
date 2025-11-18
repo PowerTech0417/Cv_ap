@@ -1,4 +1,4 @@
-name: Build APK with Docker
+name: Build Android APK
 
 on:
   push:
@@ -9,25 +9,297 @@ jobs:
   build:
     runs-on: ubuntu-latest
     
-    container:
-      image: gradle:7.5.1-jdk17-alpine
-      
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Build in container
-      run: |
-        # 在容器内构建，环境是干净的
-        gradle assembleDebug --no-daemon --stacktrace
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
         
-    - name: Extract APK from container
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+      
+    - name: Create Complete Android Project
       run: |
-        # 确保 APK 文件存在
-        ls -la app/build/outputs/apk/debug/
+        # 清理环境
+        rm -rf .gradle app/build gradlew gradlew.bat
+        
+        # 创建完整的项目结构
+        mkdir -p app/src/main/java/com/powertech0417/cvapp
+        mkdir -p app/src/main/res/values
+        mkdir -p app/src/main/res/layout
+        mkdir -p gradle/wrapper
+        
+        # 创建 gradle wrapper
+        cat > gradle/wrapper/gradle-wrapper.properties << 'EOF'
+        distributionBase=GRADLE_USER_HOME
+        distributionPath=wrapper/dists
+        distributionUrl=https\://services.gradle.org/distributions/gradle-8.2.1-bin.zip
+        networkTimeout=10000
+        validateDistributionUrl=true
+        zipStoreBase=GRADLE_USER_HOME
+        zipStorePath=wrapper/dists
+        EOF
+        
+        # 创建根目录 build.gradle
+        cat > build.gradle << 'EOF'
+        buildscript {
+            repositories {
+                google()
+                mavenCentral()
+            }
+            dependencies {
+                classpath "com.android.tools.build:gradle:8.1.0"
+            }
+        }
+        
+        allprojects {
+            repositories {
+                google()
+                mavenCentral()
+            }
+        }
+        
+        task clean(type: Delete) {
+            delete rootProject.buildDir
+        }
+        EOF
+        
+        # 创建 app/build.gradle
+        cat > app/build.gradle << 'EOF'
+        plugins {
+            id 'com.android.application'
+        }
+        
+        android {
+            namespace 'com.powertech0417.cvapp'
+            compileSdk 34
+            
+            defaultConfig {
+                applicationId "com.powertech0417.cvapp"
+                minSdk 21
+                targetSdk 34
+                versionCode 1
+                versionName "1.0"
+                
+                testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+            }
+            
+            buildTypes {
+                release {
+                    minifyEnabled false
+                    proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+                }
+            }
+            
+            compileOptions {
+                sourceCompatibility JavaVersion.VERSION_1_8
+                targetCompatibility JavaVersion.VERSION_1_8
+            }
+        }
+        
+        dependencies {
+            implementation 'androidx.appcompat:appcompat:1.6.1'
+            implementation 'com.google.android.material:material:1.9.0'
+            implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+            testImplementation 'junit:junit:4.13.2'
+            androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+            androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+        }
+        EOF
+        
+        # 创建 settings.gradle
+        echo "include ':app'" > settings.gradle
+        
+        # 创建 AndroidManifest.xml
+        cat > app/src/main/AndroidManifest.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+            xmlns:tools="http://schemas.android.com/tools">
+            
+            <uses-permission android:name="android.permission.INTERNET" />
+            <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+            
+            <application
+                android:allowBackup="true"
+                android:dataExtractionRules="@xml/data_extraction_rules"
+                android:fullBackupContent="@xml/backup_rules"
+                android:icon="@mipmap/ic_launcher"
+                android:label="@string/app_name"
+                android:theme="@style/Theme.AppCompat.Light.NoActionBar"
+                android:usesCleartextTraffic="true"
+                tools:targetApi="31">
+                
+                <activity
+                    android:name=".MainActivity"
+                    android:exported="true"
+                    android:theme="@style/Theme.AppCompat.Light.NoActionBar">
+                    <intent-filter>
+                        <action android:name="android.intent.action.MAIN" />
+                        <category android:name="android.intent.category.LAUNCHER" />
+                    </intent-filter>
+                </activity>
+            </application>
+        </manifest>
+        EOF
+        
+        # 创建字符串资源
+        cat > app/src/main/res/values/strings.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <resources>
+            <string name="app_name">我的简历</string>
+        </resources>
+        EOF
+        
+        # 创建主题
+        cat > app/src/main/res/values/themes.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <resources xmlns:tools="http://schemas.android.com/tools">
+            <style name="Base.Theme.App" parent="Theme.AppCompat.Light.NoActionBar">
+                <!-- Customize your light theme here. -->
+            </style>
+        </resources>
+        EOF
+        
+        # 创建颜色资源
+        cat > app/src/main/res/values/colors.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <resources>
+            <color name="purple_200">#FFBB86FC</color>
+            <color name="purple_500">#FF6200EE</color>
+            <color name="purple_700">#FF3700B3</color>
+            <color name="teal_200">#FF03DAC5</color>
+            <color name="teal_700">#FF018786</color>
+            <color name="black">#FF000000</color>
+            <color name="white">#FFFFFFFF</color>
+        </resources>
+        EOF
+        
+        # 创建布局文件
+        cat > app/src/main/res/layout/activity_main.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+            xmlns:app="http://schemas.android.com/apk/res-auto"
+            xmlns:tools="http://schemas.android.com/tools"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            tools:context=".MainActivity">
+            
+            <WebView
+                android:id="@+id/webview"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+                
+        </androidx.constraintlayout.widget.ConstraintLayout>
+        EOF
+        
+        # 创建必要的 XML 目录和文件
+        mkdir -p app/src/main/res/xml
+        cat > app/src/main/res/xml/backup_rules.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <full-backup-content>
+            <include domain="file" path="."/>
+            <exclude domain="file" path="cache/"/>
+        </full-backup-content>
+        EOF
+        
+        cat > app/src/main/res/xml/data_extraction_rules.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <data-extraction-rules>
+            <cloud-backup>
+                <include domain="file" path="."/>
+                <exclude domain="file" path="cache/"/>
+            </cloud-backup>
+            <device-transfer>
+                <include domain="file" path="."/>
+                <exclude domain="file" path="cache/"/>
+            </device-transfer>
+        </data-extraction-rules>
+        EOF
+        
+        # 创建 proguard 规则
+        cat > app/proguard-rules.pro << 'EOF'
+        # Add project specific ProGuard rules here.
+        # You can control the set of applied configuration files using the
+        # proguardFiles setting in build.gradle.
+        #
+        # For more details, see
+        #   http://developer.android.com/guide/developing/tools/proguard.html
+        
+        # If your project uses WebView with JS, uncomment the following
+        # and specify the fully qualified class name to the JavaScript interface
+        # class:
+        #-keepclassmembers class fqcn.of.javascript.interface.for.webview {
+        #   public *;
+        #}
+        EOF
+        
+        # 创建 MainActivity.java
+        cat > app/src/main/java/com/powertech0417/cvapp/MainActivity.java << 'EOF'
+        package com.powertech0417.cvapp;
+        
+        import android.os.Bundle;
+        import android.webkit.WebSettings;
+        import android.webkit.WebView;
+        import android.webkit.WebViewClient;
+        import androidx.appcompat.app.AppCompatActivity;
+        
+        public class MainActivity extends AppCompatActivity {
+            private WebView webView;
+            
+            @Override
+            protected void onCreate(Bundle savedInstanceState) {
+                super.onCreate(savedInstanceState);
+                setContentView(R.layout.activity_main);
+                
+                webView = findViewById(R.id.webview);
+                
+                WebSettings webSettings = webView.getSettings();
+                webSettings.setJavaScriptEnabled(true);
+                webSettings.setDomStorageEnabled(true);
+                webSettings.setLoadWithOverviewMode(true);
+                webSettings.setUseWideViewPort(true);
+                webSettings.setBuiltInZoomControls(true);
+                webSettings.setDisplayZoomControls(false);
+                
+                webView.setWebViewClient(new WebViewClient() {
+                    @Override
+                    public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                        view.loadUrl(url);
+                        return true;
+                    }
+                });
+                
+                webView.loadUrl("https://powertech0417.github.io/Cv_ap/");
+            }
+            
+            @Override
+            public void onBackPressed() {
+                if (webView.canGoBack()) {
+                    webView.goBack();
+                } else {
+                    super.onBackPressed();
+                }
+            }
+        }
+        EOF
+        
+        echo "✅ 完整的 Android 项目已创建"
+        
+    - name: Build APK
+      run: |
+        # 使用系统 gradle 构建
+        gradle assembleDebug --no-daemon --stacktrace
         
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: docker-built-apk
+        name: complete-android-app
         path: app/build/outputs/apk/debug/app-debug.apk
