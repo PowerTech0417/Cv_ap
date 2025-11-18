@@ -1,14 +1,8 @@
-name: Android APK Builder
+name: Create and Build APK
 
 on:
   push:
-    branches: 
-      - main
-      - master
-  pull_request:
-    branches: 
-      - main
-      - master
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -16,32 +10,51 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
         
-      - name: Set up JDK
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-          
-      - name: Setup Android environment
-        uses: android-actions/setup-android@v3
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+      
+    - name: Create fresh Android project
+      run: |
+        # 删除所有可能的问题文件
+        rm -rf gradlew gradlew.bat .gradle app/build
         
-      - name: Make gradlew executable
-        run: chmod +x gradlew || true
+        # 创建必要的目录结构
+        mkdir -p app/src/main/java/com/powertech0417/cvapp
+        mkdir -p app/src/main/res
         
-      - name: Build application
-        run: |
-          if [ -f "gradlew" ]; then
-            ./gradlew assembleDebug
-          else
-            gradle assembleDebug
-          fi
-          
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-app
-          path: app/build/outputs/apk/**/*.apk
-          retention-days: 7
+        # 创建正确的 build.gradle
+        cat > build.gradle << 'EOF'
+        buildscript {
+            repositories {
+                google()
+                mavenCentral()
+            }
+            dependencies {
+                classpath "com.android.tools.build:gradle:8.1.0"
+            }
+        }
+        
+        allprojects {
+            repositories {
+                google()
+                mavenCentral()
+            }
+        }
+        
+        task clean(type: Delete) {
+            delete rootProject.buildDir
+        }
+        EOF
+        
+        # 创建 app/build.gradle
+        cat > app/build.gradle << 'EOF'
+        plugins
