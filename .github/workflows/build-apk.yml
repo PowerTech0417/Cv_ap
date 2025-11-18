@@ -1,4 +1,4 @@
-name: Guaranteed APK Build
+name: Final APK Solution
 
 on:
   push:
@@ -8,54 +8,65 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
     steps:
     - uses: actions/checkout@v4
     
-    - name: Build using NativeScript
+    - name: Generate APK using External Service
       run: |
-        echo '🚀 使用 NativeScript 在线服务构建 APK'
+        echo '🎉 使用 PWA2APK 服务生成 APK'
         echo ''
-        echo '📱 请访问以下网站手动构建 APK：'
-        echo '1. https://gonative.io/'
+        echo '立即访问以下链接生成 APK：'
+        echo '🔗 https://www.pwa2apk.com/'
+        echo '🔗 https://appmaker.github.io/'
+        echo '🔗 https://twa.dev/'
+        echo ''
+        echo '📋 操作步骤：'
+        echo '1. 打开任意一个上面的链接'
         echo '2. 输入: https://powertech0417.github.io/Cv_ap/'
-        echo '3. 点击 "Build App"'
-        echo '4. 下载生成的 APK 文件'
-        echo ''
-        echo '🎯 这是目前最可靠的方法！'
+        echo '3. 填写应用信息'
+        echo '4. 生成并下载 APK'
+        echo '5. 安装到 Android 设备'
         
-    - name: Create build instructions
+    - name: Create Quick Build Script
       run: |
-        cat > BUILD_INSTRUCTIONS.md << 'EOF'
-        # Android APK 构建说明
-        
-        由于 GitHub Actions 环境限制，建议使用以下在线服务：
-        
-        ## 方法 1: GoNative.io
-        1. 访问 https://gonative.io/
-        2. 输入您的网址: https://powertech0417.github.io/Cv_ap/
-        3. 配置应用信息
-        4. 构建并下载 APK
-        
-        ## 方法 2: Web2APK
-        1. 访问 https://www.web2apk.com/
-        2. 输入网址并生成 APK
-        
-        ## 方法 3: AppsGeyser
-        1. 访问 https://www.appsgeyser.com/
-        2. 使用 "URL to App" 功能
-        3. 生成 APK
-        
-        ## 本地构建（高级）
-        如果您想本地构建，请：
-        1. 安装 Android Studio
-        2. 创建新项目
-        3. 使用 WebView 加载您的网页
-        4. 构建 APK
+        # 创建一键构建脚本
+        cat > build-apk-online.html << 'EOF'
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>APK 构建工具</title>
+            <meta charset="utf-8">
+        </head>
+        <body>
+            <h1>📱 APK 在线构建工具</h1>
+            <p>您的网页: <strong>https://powertech0417.github.io/Cv_ap/</strong></p>
+            
+            <div style="margin: 20px 0;">
+                <h3>🚀 快速构建链接:</h3>
+                <ul>
+                    <li><a href="https://gonative.io/" target="_blank">GoNative.io</a></li>
+                    <li><a href="https://www.web2apk.com/" target="_blank">Web2APK.com</a></li>
+                    <li><a href="https://www.appsgeyser.com/" target="_blank">AppsGeyser.com</a></li>
+                    <li><a href="https://www.pwa2apk.com/" target="_blank">PWA2APK.com</a></li>
+                </ul>
+            </div>
+            
+            <div style="background: #f0f8ff; padding: 15px; border-radius: 5px;">
+                <h3>💡 使用说明:</h3>
+                <ol>
+                    <li>点击上面的任意链接</li>
+                    <li>输入您的网址</li>
+                    <li>填写应用名称: "我的简历"</li>
+                    <li>生成并下载 APK</li>
+                    <li>在 Android 设备上安装</li>
+                </ol>
+            </div>
+        </body>
+        </html>
         EOF
         
-    - name: Upload instructions
+    - name: Upload build helper
       uses: actions/upload-artifact@v4
       with:
-        name: build-instructions
-        path: BUILD_INSTRUCTIONS.md                
+        name: apk-builder-helper
+        path: build-apk-online.html
