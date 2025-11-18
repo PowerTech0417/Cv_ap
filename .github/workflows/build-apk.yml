@@ -1,4 +1,4 @@
-name: Android CI
+name: Android CI Fixed
 
 on: [push, pull_request]
 
@@ -7,68 +7,33 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
-      
+      - uses: actions/checkout@v4 # 使用稳定版本
+
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v4 # 使用稳定版本
         with:
           java-version: '21'
           distribution: 'temurin'
           cache: gradle
 
+      # 核心修复：使用专门的Action来设置Android SDK环境
       - name: Setup Android SDK
-        run: |
-          # 安装 Android SDK
-          wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-          unzip -q commandlinetools-linux-9477386_latest.zip
-          mkdir -p android-sdk/cmdline-tools/latest
-          mv cmdline-tools/* android-sdk/cmdline-tools/latest/
-          echo "ANDROID_SDK_ROOT=$PWD/android-sdk" >> $GITHUB_ENV
-          echo "$PWD/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
-          
-          # 安装必要的 Android 组件
-          yes | sdkmanager --licenses
-          sdkmanager "platforms;android-34" "build-tools;34.0.0"
+        uses: android-actions/setup-android@v3 # 此Action会处理SDK路径等问题[citation:5]
+        # 如果需要，你可以在此添加更多配置，例如指定SDK版本
+        # with:
+        #   sdk-version: "34"
 
-      - name: Create gradlew if missing
-        run: |
-          if [ ! -f "gradlew" ]; then
-            echo "创建 gradlew 文件..."
-            # 使用系统 gradle
-            gradle wrapper --gradle-version 8.2.1
-          fi
-          chmod +x gradlew
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
 
-      - name: Build with Gradle
-        run: |
-          # 尝试不同的构建任务
-          ./gradlew tasks | grep assemble || echo "没有找到assemble任务"
-          
-          # 尝试构建 debug APK
-          ./gradlew assembleDebug || ./gradlew build
+      - name: Build debug APK with Gradle
+        run: ./gradlew assembleFossDebug
 
-      - name: Find and Upload APK
-        run: |
-          # 查找所有 APK 文件
-          find . -name "*.apk" -type f | head -10
-          
-          # 检查常见的 APK 路径
-          if [ -f "app/build/outputs/apk/debug/app-debug.apk" ]; then
-            echo "找到 debug APK"
-            ls -la app/build/outputs/apk/debug/
-          elif [ -f "app/build/outputs/apk/foss/debug/app-foss-debug.apk" ]; then
-            echo "找到 foss debug APK"
-            ls -la app/build/outputs/apk/foss/debug/
-          else
-            echo "未找到标准 APK 文件"
-            find . -name "*.apk" -exec ls -la {} \;
-          fi
+      - name: Run tests
+        run: ./gradlew testFossDebugUnitTest
 
-      - name: Upload APK Artifact
-        uses: actions/upload-artifact@v4
+      - name: Upload debug APK artifact
+        uses: actions/upload-artifact@v4 # 使用稳定版本
         with:
-          name: android-apk
-          path: |
-            app/build/outputs/apk/**/*.apk
-            **/outputs/apk/**/*.apk
-          if-no-files-found: warn
+          name: tomato-debug
+          path: ./app/build/outputs/apk/debug/app-debug.apk
