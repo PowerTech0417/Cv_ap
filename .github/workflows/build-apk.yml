@@ -1,87 +1,38 @@
-name: Build APK
+name: Simple APK Build
 
-on:
-  push:
-    branches: [ main ]
-  workflow_dispatch:
+on: [push, workflow_dispatch]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup environment
+    - uses: actions/checkout@v4
+    - name: Build APK
       run: |
-        # 安装必要工具
-        sudo apt-get update
-        sudo apt-get install -y wget unzip
+        # 一键安装所有依赖
+        sudo apt update && sudo apt install -y android-sdk-build-tools-34 gradle openjdk-11-jdk
         
-    - name: Set up JDK 11
-      uses: actions/setup-java@v4
-      with:
-        java-version: '11'
-        distribution: 'temurin'
-        
-    - name: Download Android SDK
-      run: |
-        wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-        unzip -q commandlinetools-linux-11076708_latest.zip
-        mkdir -p android-sdk/cmdline-tools/latest
-        mv cmdline-tools/* android-sdk/cmdline-tools/latest/
-        echo "ANDROID_SDK_ROOT=$PWD/android-sdk" >> $GITHUB_ENV
-        echo "$PWD/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
-        
-    - name: Install Android components
-      run: |
-        yes | sdkmanager --licenses
-        sdkmanager "platforms;android-31" "build-tools;31.0.0"
-        
-    - name: Create project files
-      run: |
-        mkdir -p app/src/main/java/com/powertech0417/cvapp
-        
-        # 创建 build.gradle
-        cat > build.gradle << 'EOF'
-        buildscript {
-            repositories { google(); mavenCentral() }
-            dependencies { classpath "com.android.tools.build:gradle:4.2.2" }
-        }
-        allprojects {
-            repositories { google(); mavenCentral() }
-        }
-        task clean(type: Delete) { delete rootProject.buildDir }
-        EOF
-        
-        # 创建 app/build.gradle
+        # 创建最简单的项目
+        mkdir -p app/src/main/java/com/example/app
         cat > app/build.gradle << 'EOF'
         plugins { id 'com.android.application' }
         android {
-            compileSdk 31
+            compileSdk 34
             defaultConfig {
-                applicationId "com.powertech0417.cvapp"
+                applicationId "com.example.app"
                 minSdk 21
-                targetSdk 31
-                versionCode 1
-                versionName "1.0"
-            }
-            buildTypes {
-                release { minifyEnabled false }
+                targetSdk 34
             }
         }
-        dependencies { implementation 'androidx.appcompat:appcompat:1.4.0' }
+        dependencies { implementation 'androidx.appcompat:appcompat:1.6.1' }
         EOF
         
         echo "include ':app'" > settings.gradle
         
-        # 创建 AndroidManifest.xml
         cat > app/src/main/AndroidManifest.xml << 'EOF'
-        <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android">
             <uses-permission android:name="android.permission.INTERNET" />
-            <application android:label="My CV App">
+            <application android:label="App">
                 <activity android:name=".MainActivity" android:exported="true">
                     <intent-filter>
                         <action android:name="android.intent.action.MAIN" />
@@ -92,14 +43,12 @@ jobs:
         </manifest>
         EOF
         
-        # 创建 MainActivity.java
-        cat > app/src/main/java/com/powertech0417/cvapp/MainActivity.java << 'EOF'
-        package com.powertech0417.cvapp;
+        cat > app/src/main/java/com/example/app/MainActivity.java << 'EOF'
+        package com.example.app;
         import android.app.Activity;
         import android.os.Bundle;
         import android.webkit.WebView;
         public class MainActivity extends Activity {
-            @Override
             protected void onCreate(Bundle savedInstanceState) {
                 super.onCreate(savedInstanceState);
                 WebView webView = new WebView(this);
@@ -110,25 +59,11 @@ jobs:
         }
         EOF
         
-    - name: Build APK
-      run: |
-        # 使用 --warning-mode none 忽略所有警告
-        ./gradlew assembleDebug --warning-mode none --no-daemon || true
-        
-    - name: Check if APK exists
-      run: |
-        if [ -f "app/build/outputs/apk/debug/app-debug.apk" ]; then
-          echo "✅ APK 构建成功！"
-          ls -la app/build/outputs/apk/debug/
-        else
-          echo "❌ APK 文件未找到"
-          # 尝试重新构建
-          ./gradlew assembleDebug --stacktrace
-        fi
+        # 构建 APK
+        gradle assembleDebug --stacktrace
         
     - name: Upload APK
-      if: success()
       uses: actions/upload-artifact@v4
       with:
-        name: cv-app
+        name: simple-apk
         path: app/build/outputs/apk/debug/app-debug.apk
