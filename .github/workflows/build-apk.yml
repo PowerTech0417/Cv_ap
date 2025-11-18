@@ -13,31 +13,105 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
+    - name: Setup Android APK Build
+      uses: mobiledevops/androidsdk-emulator-runner@v2.0.0
       with:
-        java-version: '17'
-        distribution: 'temurin'
-        
-    - name: Download Gradle Wrapper
-      run: |
-        mkdir -p gradle/wrapper
-        wget -O gradle/wrapper/gradle-wrapper.jar https://github.com/gradle/gradle/raw/master/gradle/wrapper/gradle-wrapper.jar
-        
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
-      
-    - name: Create debug keystore
-      run: |
-        keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
-        
-    - name: Build APK
-      run: |
-        chmod +x ./gradlew
-        ./gradlew assembleDebug --no-daemon --stacktrace
-        
+        api-level: 34
+        target: android-34
+        arch: x86_64
+        profile: nexus6
+        script: |
+          # 创建最简单的 Android 项目结构
+          mkdir -p app/src/main/java/com/powertech0417/cvapp
+          mkdir -p app/src/main/res/layout
+          
+          # 创建 build.gradle
+          cat > app/build.gradle << 'EOF'
+          plugins {
+              id 'com.android.application'
+          }
+          android {
+              compileSdk 34
+              defaultConfig {
+                  applicationId "com.powertech0417.cvapp"
+                  minSdk 21
+                  targetSdk 34
+                  versionCode 1
+                  versionName "1.0"
+              }
+              signingConfigs {
+                  debug {
+                      storeFile file("debug.keystore")
+                      storePassword "android"
+                      keyAlias "androiddebugkey"
+                      keyPassword "android"
+                  }
+              }
+              buildTypes {
+                  release {
+                      signingConfig signingConfigs.debug
+                  }
+              }
+          }
+          dependencies {
+              implementation 'androidx.appcompat:appcompat:1.6.1'
+          }
+          EOF
+          
+          # 创建 settings.gradle
+          echo "include ':app'" > settings.gradle
+          
+          # 创建 AndroidManifest.xml
+          cat > app/src/main/AndroidManifest.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-permission android:name="android.permission.INTERNET" />
+              <application
+                  android:allowBackup="true"
+                  android:label="我的简历">
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+          
+          # 创建 MainActivity.java
+          cat > app/src/main/java/com/powertech0417/cvapp/MainActivity.java << 'EOF'
+          package com.powertech0417.cvapp;
+          import android.app.Activity;
+          import android.os.Bundle;
+          import android.webkit.WebView;
+          import android.webkit.WebSettings;
+          public class MainActivity extends Activity {
+              private WebView webView;
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  webView = new WebView(this);
+                  setContentView(webView);
+                  WebSettings webSettings = webView.getSettings();
+                  webSettings.setJavaScriptEnabled(true);
+                  webSettings.setDomStorageEnabled(true);
+                  webView.loadUrl("https://powertech0417.github.io/Cv_ap/");
+              }
+          }
+          EOF
+          
+          # 创建 debug.keystore
+          keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          
+          # 构建 APK
+          ./gradlew assembleDebug --stacktrace
+          
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: app-debug
+        name: app-apk
         path: app/build/outputs/apk/debug/app-debug.apk
+        retention-days: 30
