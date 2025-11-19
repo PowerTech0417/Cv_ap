@@ -16,7 +16,7 @@ public class MainActivity extends AppCompatActivity {
 
     private WebView webView;
     private ProgressBar progressBar;
-    private static final String TARGET_URL = "https://powertech0417.github.io/LinksApp_gen_link/";
+    private static final String TARGET_URL = "https://modskyshop168-sudo.github.io/aa/";
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
