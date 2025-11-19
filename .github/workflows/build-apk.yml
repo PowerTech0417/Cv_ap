@@ -34,9 +34,10 @@ jobs:
     - name: Build with Gradle
       run: |
        ./gradlew --stop || true
-       export GRADLE_OPTS="-Dorg.gradle.parallel=false -Dorg.gradle.configureondemand=false -Dorg.gradle.workers.max=1"
-       ./gradlew clean
-       ./gradlew assembleDebug --no-daemon --stacktrace
+       echo "org.gradle.parallel=false" >> gradle.properties
+       echo "org.gradle.configureondemand=false" >> gradle.properties  
+       echo "org.gradle.workers.max=1" >> gradle.properties
+       ./gradlew clean assembleDebug --no-daemon --stacktrace
        
     - name: Upload APK artifacts
       uses: actions/upload-artifact@v4
