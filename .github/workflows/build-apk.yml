@@ -5,7 +5,7 @@ on:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
-  workflow_dispatch:  # 允许手动触发
+  workflow_dispatch:
 
 jobs:
   build:
@@ -22,37 +22,32 @@ jobs:
         distribution: 'temurin'
         
     - name: Make gradlew executable
-      run: chmod +x ./gradlew
-      
-    - name: Build Debug APK
-      run: ./gradlew assembleDebug
-      
-    - name: Build Release APK
       run: |
-        ./gradlew assembleRelease
+        chmod +x ./gradlew
+        ls -la gradlew  # 检查权限
+        
+    - name: Validate Gradle Wrapper
+      run: |
+        file gradlew
+        ./gradlew --version
+        
+    - name: Build APK
+      run: |
+        ./gradlew assembleDebug --stacktrace
+        ./gradlew assembleRelease --stacktrace
+        
+    - name: List APK files
+      run: |
+        find . -name "*.apk" -type f | head -10
+        ls -la app/build/outputs/apk/
+        ls -la app/build/outputs/apk/debug/
         ls -la app/build/outputs/apk/release/
         
     - name: Upload APK artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: WebView-APK
+        name: WebView-APK-Files
         path: |
-          app/build/outputs/apk/debug/app-debug.apk
-          app/build/outputs/apk/release/app-release.apk
+          app/build/outputs/apk/debug/
+          app/build/outputs/apk/release/
         retention-days: 30
-        
-    - name: Create Release
-      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-      uses: softprops/action-gh-release@v1
-      with:
-        files: |
-          app/build/outputs/apk/release/app-release.apk
-          app/build/outputs/apk/debug/app-debug.apk
-        tag_name: v1.0.${{ github.run_number }}
-        name: Release v1.0.${{ github.run_number }}
-        body: |
-          自动构建的 WebView APK
-          - Commit: ${{ github.sha }}
-          - 构建时间: ${{ github.event.head_commit.timestamp }}
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
