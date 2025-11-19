@@ -21,17 +21,17 @@ jobs:
         
     - name: Generate Gradle Wrapper
       run: |
-        # 安装 gradle 并生成 wrapper
+        # 使用正确的 Gradle 版本生成 wrapper
         wget https://services.gradle.org/distributions/gradle-8.0-bin.zip
-        unzip gradle-8.0-bin.zip
-        ./gradle-8.0/bin/gradle wrapper --gradle-version=8.0
+        unzip -q gradle-8.0-bin.zip
+        ./gradle-8.0/bin/gradle wrapper --gradle-version=8.0 --distribution-type=bin
         
     - name: Make gradlew executable
       run: chmod +x ./gradlew
         
     - name: Build with Gradle
       run: |
-        ./gradlew assembleDebug --stacktrace
+        ./gradlew assembleDebug --no-daemon --stacktrace
         
     - name: Upload APK artifacts
       uses: actions/upload-artifact@v4
