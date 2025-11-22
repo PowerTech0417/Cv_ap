@@ -16,7 +16,7 @@ public class MainActivity extends AppCompatActivity {
 
     private WebView webView;
     private ProgressBar progressBar;
-    private static final String TARGET_URL = "https://ottlinkpw.pages.dev/";
+    private static final String TARGET_URL = "https://ottlinkpw.pwbtw.workers.dev/";
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
