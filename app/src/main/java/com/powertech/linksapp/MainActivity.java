@@ -1,9 +1,13 @@
 package com.powertech.linksapp;
 
 import android.annotation.SuppressLint;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.view.KeyEvent;
+import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
@@ -16,6 +20,7 @@ public class MainActivity extends AppCompatActivity {
 
     private WebView webView;
     private ProgressBar progressBar;
+    // 您的 Worker 地址
     private static final String TARGET_URL = "https://ottlinkpw.pwbtw.workers.dev/";
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -39,6 +44,12 @@ public class MainActivity extends AppCompatActivity {
         webSettings.setSupportZoom(false);
         webSettings.setDefaultTextEncodingName("utf-8");
         webSettings.setCacheMode(WebSettings.LOAD_DEFAULT);
+
+        // ==================================================================
+        // 【关键修改】注入 JavaScript 接口，名称为 "Android"
+        // 这允许网页通过 window.Android.getClipboardText() 调用安卓剪贴板
+        // ==================================================================
+        webView.addJavascriptInterface(new WebAppInterface(this), "Android");
 
         // 设置 WebViewClient 来处理页面加载
         webView.setWebViewClient(new WebViewClient() {
@@ -96,5 +107,33 @@ public class MainActivity extends AppCompatActivity {
             webView.destroy();
         }
         super.onDestroy();
+    }
+
+    // ==================================================================
+    // 【关键修改】定义 JavaScript 接口类
+    // ==================================================================
+    public class WebAppInterface {
+        Context mContext;
+
+        WebAppInterface(Context c) {
+            mContext = c;
+        }
+
+        // 暴露给 JavaScript 的方法：获取剪贴板内容
+        @JavascriptInterface
+        public String getClipboardText() {
+            try {
+                ClipboardManager clipboard = (ClipboardManager) mContext.getSystemService(Context.CLIPBOARD_SERVICE);
+                if (clipboard != null && clipboard.hasPrimaryClip()) {
+                    ClipData.Item item = clipboard.getPrimaryClip().getItemAt(0);
+                    if (item != null && item.getText() != null) {
+                        return item.getText().toString();
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return ""; // 如果没有内容或出错，返回空字符串
+        }
     }
 }
