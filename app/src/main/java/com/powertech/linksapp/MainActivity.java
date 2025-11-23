@@ -45,6 +45,7 @@ public class MainActivity extends AppCompatActivity {
         webSettings.setDefaultTextEncodingName("utf-8");
         webSettings.setCacheMode(WebSettings.LOAD_DEFAULT);
         webSettings.setAllowFileAccess(true);
+        webSettings.setAllowContentAccess(true);
         
         // ==================================================================
         // 【关键修改】注入 JavaScript 接口，名称为 "Android"
