@@ -44,7 +44,8 @@ public class MainActivity extends AppCompatActivity {
         webSettings.setSupportZoom(false);
         webSettings.setDefaultTextEncodingName("utf-8");
         webSettings.setCacheMode(WebSettings.LOAD_DEFAULT);
-
+        webSettings.setAllowFileAccess(true);
+        
         // ==================================================================
         // 【关键修改】注入 JavaScript 接口，名称为 "Android"
         // 这允许网页通过 window.Android.getClipboardText() 调用安卓剪贴板
