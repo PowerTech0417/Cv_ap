@@ -21,7 +21,7 @@ public class MainActivity extends AppCompatActivity {
     private WebView webView;
     private ProgressBar progressBar;
     // 您的 Worker 地址
-    private static final String TARGET_URL = "https://ottlinkpw.pwbtw.workers.dev/";
+    private static final String TARGET_URL = "https://linkapp.powertech.workers.dev/";
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
