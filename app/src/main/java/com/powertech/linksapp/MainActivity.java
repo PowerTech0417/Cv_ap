@@ -48,8 +48,7 @@ public class MainActivity extends AppCompatActivity {
         webSettings.setAllowContentAccess(true);
         
         // ==================================================================
-        // 【关键修改】注入 JavaScript 接口，名称为 "Android"
-        // 这允许网页通过 window.Android.getClipboardText() 调用安卓剪贴板
+        // 【关键】注入 JavaScript 接口，名称为 "Android"，实现 JS 对剪贴板的调用
         // ==================================================================
         webView.addJavascriptInterface(new WebAppInterface(this), "Android");
 
@@ -112,7 +111,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     // ==================================================================
-    // 【关键修改】定义 JavaScript 接口类
+    // 【关键】定义 JavaScript 接口类，包含 getClipboardText() 方法
     // ==================================================================
     public class WebAppInterface {
         Context mContext;
@@ -129,7 +128,8 @@ public class MainActivity extends AppCompatActivity {
                 if (clipboard != null && clipboard.hasPrimaryClip()) {
                     ClipData.Item item = clipboard.getPrimaryClip().getItemAt(0);
                     if (item != null && item.getText() != null) {
-                        return item.getText().toString();
+                        // 优化：返回前 trim() 掉首尾空格
+                        return item.getText().toString().trim(); 
                     }
                 }
             } catch (Exception e) {
