@@ -1,17 +1,26 @@
-<resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
-    <style name="Base.Theme.App" parent="Theme.Material3.DayNight">
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Base application theme. 使用 AppCompat 主题以确保兼容性。-->
+    <!-- 您的错误提示表明它找不到 Material3 主题，我们切换到更标准的 AppCompat 主题 -->
+    <style name="Theme.LinksApp" parent="Theme.AppCompat.Light.NoActionBar">
         <!-- Primary brand color. -->
         <item name="colorPrimary">@color/purple_500</item>
-        <item name="colorPrimaryVariant">@color/purple_700</item>
+        <!-- 修复缺失的 colorPrimaryVariant 属性 (M2 属性) -->
+        <item name="colorPrimaryVariant">@color/purple_700</item> 
         <item name="colorOnPrimary">@color/white</item>
+        
         <!-- Secondary brand color. -->
         <item name="colorSecondary">@color/teal_200</item>
+        <!-- 修复缺失的 colorSecondaryVariant 属性 -->
         <item name="colorSecondaryVariant">@color/teal_700</item>
         <item name="colorOnSecondary">@color/black</item>
+        
         <!-- Status bar color. -->
-        <item name="android:statusBarColor" tools:targetApi="l">?attr/colorPrimaryVariant</item>
+        <!-- 因为我们在 Java 中强制使用了沉浸式全屏，状态栏颜色可能不重要，但仍需定义以通过编译 -->
+        <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
+        
+        <!-- Customize your theme here. -->
+        <item name="android:windowBackground">@color/black</item>
     </style>
-
-    <style name="Theme.App" parent="Base.Theme.App" />
 </resources>
