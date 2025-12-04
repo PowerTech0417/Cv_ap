@@ -3,11 +3,10 @@
 buildscript {
     ext {
         // Define common versions here
-        // Using standard/stable versions that should work well
         min_sdk_version = 21
         compile_sdk_version = 34
         target_sdk_version = 34
-        app_compat_version = '1.6.1' // Stable AppCompat version
+        app_compat_version = '1.6.1'
         constraint_layout_version = '2.1.4'
     }
     repositories {
@@ -15,10 +14,10 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        // Standard Android Gradle Plugin
-        classpath 'com.android.tools.build:gradle:8.2.2' 
-        // NOTE: Do not place your application dependencies here; they belong
-        // in the individual module build.gradle files
+        // 确保 Android Gradle Plugin (AGP) 版本是 8.2.2
+        classpath 'com.android.tools.build:gradle:8.2.2'
+        // 添加 kotlin-gradle-plugin，即使没有明确的 Kotlin 代码，现代项目也经常需要它
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.20" 
     }
 }
 
@@ -29,6 +28,4 @@ allprojects {
     }
 }
 
-task clean(type: Delete) {
-    delete rootProject.buildDir
-}
+// 移除标准的 clean 任务，让构建系统使用其内置的 clean
