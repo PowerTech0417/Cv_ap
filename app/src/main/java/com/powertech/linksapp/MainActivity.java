@@ -9,6 +9,7 @@ import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.KeyEvent;
+import android.view.View; // 【新增】导入 View 类
 import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
@@ -31,6 +32,18 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        
+        // ==================================================================
+        // 【新增】设置沉浸式全屏模式，遮盖时间线和导航栏
+        // ==================================================================
+        View decorView = getWindow().getDecorView();
+        decorView.setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY // 保持沉浸式，用户滑动后短暂显示
+                | View.SYSTEM_UI_FLAG_FULLSCREEN      // 隐藏状态栏 (时间线)
+                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION // 隐藏导航栏
+        );
+        // ==================================================================
+        
         // 假设您的布局文件 R.layout.activity_main 包含 WebView 和 ProgressBar
         setContentView(R.layout.activity_main); 
 
@@ -156,7 +169,14 @@ public class MainActivity extends AppCompatActivity {
             final String IDM_PACKAGE_ALT = "com.dv.aidm"; 
 
             // 优化文件名，确保给下载器的建议名称以 .mp4 结尾，以鼓励下载器自动封装
-            final String suggestedFileName = fileName.replace(".m3u8", ".mp4").trim(); 
+            // 注意：H5端应该传入带 .m3u8 的文件名，此方法用于统一替换
+            String suggestedFileName = fileName;
+            if (fileName.toLowerCase().endsWith(".m3u8")) {
+                suggestedFileName = fileName.replace(".m3u8", ".mp4").trim(); 
+            } else {
+                 suggestedFileName = fileName.trim();
+            }
+
 
             runOnUiThread(() -> {
                 boolean success = false;
