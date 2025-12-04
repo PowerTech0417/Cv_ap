@@ -14,10 +14,9 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        // 确保 Android Gradle Plugin (AGP) 版本是 8.2.2
-        classpath 'com.android.tools.build:gradle:8.2.2'
-        // 添加 kotlin-gradle-plugin，即使没有明确的 Kotlin 代码，现代项目也经常需要它
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.20" 
+        // 【关键修复】将 AGP 版本降级到 7.4.2，以兼容构建环境中强制使用的 Gradle 8.0
+        classpath 'com.android.tools.build:gradle:7.4.2' 
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.20"
     }
 }
 
@@ -27,5 +26,3 @@ allprojects {
         mavenCentral()
     }
 }
-
-// 移除标准的 clean 任务，让构建系统使用其内置的 clean
