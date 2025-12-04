@@ -2,12 +2,15 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- ======================================================= -->
+    <!-- 权限部分：必须在 <application> 标签之外 -->
+    <!-- ======================================================= -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     
-    <!-- 建议添加，用于存储下载文件 -->
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="33" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="33" />
+    <!-- 用于存储下载文件（移除 maxSdkVersion 以提高兼容性） -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
 
 
     <application
@@ -18,13 +21,13 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.LinksApp"  <!-- 【关键修复】使用我们定义的主题 -->
+        android:theme="@style/Theme.LinksApp"
         tools:targetApi="31">
         
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:configChanges="orientation|screenSize|keyboardHidden"  <!-- 确保屏幕旋转不重启 Activity -->
+            android:configChanges="orientation|screenSize|keyboardHidden"  
             android:screenOrientation="fullSensor"
             android:label="@string/app_name">
             <intent-filter>
