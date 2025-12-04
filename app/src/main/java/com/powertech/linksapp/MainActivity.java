@@ -31,7 +31,7 @@ public class MainActivity extends AppCompatActivity {
     private WebView webView;
     private ProgressBar progressBar;
     
-    // 【新增】用于处理视频全屏的视图和容器
+    // 用于处理视频全屏的视图和容器
     private View mCustomView;
     private FrameLayout mCustomViewContainer;
     private WebChromeClient.CustomViewCallback mCustomViewCallback;
@@ -45,7 +45,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         
         // ==================================================================
-        // Set immersive fullscreen mode (must be called before setting content for best effect)
+        // Set immersive fullscreen mode
         // ==================================================================
         final View decorView = getWindow().getDecorView();
         // Hides status bar, navigation bar, and enables sticky immersive mode
@@ -74,7 +74,7 @@ public class MainActivity extends AppCompatActivity {
         // 初始化视图
         webView = findViewById(R.id.webview);
         progressBar = findViewById(R.id.progress_bar);
-        // 【新增】初始化全屏容器
+        // 初始化全屏容器
         mCustomViewContainer = findViewById(android.R.id.content); // 使用默认的 content 容器
 
         // 配置 WebView 设置
@@ -91,7 +91,7 @@ public class MainActivity extends AppCompatActivity {
         webSettings.setAllowFileAccess(true);
         webSettings.setAllowContentAccess(true);
         
-        // 【关键】允许 HTML5 视频播放全屏
+        // 允许 HTML5 视频播放全屏
         webSettings.setAllowFileAccess(true);
         webSettings.setAllowContentAccess(true);
         webSettings.setMediaPlaybackRequiresUserGesture(false); // 允许自动播放
@@ -121,9 +121,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // ==================================================================
-        // 【关键修复】设置 WebChromeClient 来处理进度条和视频全屏
-        // ==================================================================
+        // 设置 WebChromeClient 来处理进度条和视频全屏
         webView.setWebChromeClient(new MyWebChromeClient());
 
         // 加载目标网站
@@ -149,7 +147,7 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        // 【新增】处理视频全屏请求
+        // 处理视频全屏请求
         @Override
         public void onShowCustomView(View view, CustomViewCallback callback) {
             if (mCustomView != null) {
@@ -185,7 +183,7 @@ public class MainActivity extends AppCompatActivity {
             );
         }
 
-        // 【新增】处理退出视频全屏请求
+        // 处理退出视频全屏请求
         @Override
         public void onHideCustomView() {
             if (mCustomView == null) {
@@ -210,9 +208,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    // ==================================================================
-    // 【修复】处理返回键：优先退出视频全屏
-    // ==================================================================
+    // 处理返回键：优先退出视频全屏
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         // 1. 如果当前处于视频全屏模式，按返回键先退出全屏
@@ -228,7 +224,6 @@ public class MainActivity extends AppCompatActivity {
         }
         return super.onKeyDown(keyCode, event);
     }
-    // ==================================================================
 
     // 防止 WebView 内存泄漏
     @Override
@@ -279,37 +274,28 @@ public class MainActivity extends AppCompatActivity {
          */
         @JavascriptInterface
         public void startDownload(final String downloadUrl, final String fileName) {
-            // 将 downloadUrl 和 fileName 声明为 final (可选，但推荐)
-            
-            final String IDM_PACKAGE = "com.dv.aidm.downloader";
-            final String IDM_PACKAGE_ALT = "com.dv.aidm";
+            // 【关键修复】使用用户提供的正确的 1DM+ 包名
+            final String IDM_PACKAGE = "idm.internet.download.manager.plus"; 
 
-            // 1. 修复：创建 final 变量来保存文件名
+            // 1. 创建 final 变量来保存文件名
             String tempFileName = fileName.trim();
             if (tempFileName.toLowerCase().endsWith(".m3u8")) {
                 tempFileName = tempFileName.replace(".m3u8", ".mp4").trim();
             } 
             
-            // 【关键修复】将处理后的文件名声明为 final，供 Lambda 表达式使用
+            // 将处理后的文件名声明为 final，供 Lambda 表达式使用
             final String finalSuggestedFileName = tempFileName;
 
             // UI operations (like Toast) must run on the main thread
             runOnUiThread(() -> {
                 boolean success = false;
 
-                // 1. Try starting with the primary 1DM+ package name
-                // 使用 finalSuggestedFileName
+                // 1. 尝试使用用户提供的包名启动
                 success = attemptStartIDM(IDM_PACKAGE, downloadUrl, finalSuggestedFileName); 
 
-                // 2. If failed, try the alternative package name
+                // 2. 如果启动失败，通知用户并回退到复制链接
                 if (!success) {
-                    // 使用 finalSuggestedFileName
-                    success = attemptStartIDM(IDM_PACKAGE_ALT, downloadUrl, finalSuggestedFileName);
-                }
-
-                // 3. If all attempts failed, notify user and fallback to copying the link
-                if (!success) {
-                    Toast.makeText(mContext, "⚠️ 找不到 1DM+ 或启动失败，请检查是否已安装。", Toast.LENGTH_LONG).show();
+                    Toast.makeText(mContext, "⚠️ 找不到 1DM+ 或启动失败，请检查是否已安装正确的版本。", Toast.LENGTH_LONG).show();
 
                     // Copy link to clipboard
                     ClipboardManager clipboard = (ClipboardManager) mContext.getSystemService(Context.CLIPBOARD_SERVICE);
