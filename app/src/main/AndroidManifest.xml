@@ -2,10 +2,19 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- 网络权限 -->
+    <!-- 【关键】允许应用访问网络 (解决无法加载网页的错误) -->
     <uses-permission android:name="android.permission.INTERNET" />
-    <!-- 网络状态权限 -->
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- 【可选但强烈建议】如果需要下载文件到存储空间，可能需要 -->
+    <!-- <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" /> -->
+
+    <!-- 【关键 for Android 11+】声明需要查询的外部应用包名 (解决无法启动 1DM+ 的错误) -->
+    <queries>
+        <!-- 1DM+ primary package name -->
+        <package android:name="com.dv.aidm.downloader" />
+        <!-- 1DM+ alternative package name -->
+        <package android:name="com.dv.aidm" />
+    </queries>
 
     <application
         android:allowBackup="true"
@@ -13,13 +22,15 @@
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
-        android:theme="@style/Theme.AppCompat.Light.NoActionBar"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.LinksApp"
         tools:targetApi="31">
-        
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:configChanges="orientation|screenSize|keyboardHidden">
+            android:configChanges="orientation|screenSize"
+            android:screenOrientation="portrait"> 
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
