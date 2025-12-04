@@ -1,7 +1,6 @@
 plugins {
     id 'com.android.application'
-    // 移除显式的 id 'org.jetbrains.kotlin.android' 插件声明。
-    // 我们依赖 AGP 和 'androidx.core:core-ktx' 来处理 Kotlin 依赖，以提高兼容性。
+    // 保持这个块简洁，只应用最必要的插件
 }
 
 android {
@@ -9,7 +8,7 @@ android {
     
     def app_versions = rootProject.ext
 
-    // 编译 SDK 保持 34
+    // 编译 SDK 保持 34 (AGP 7.4.2 的安全配置)
     compileSdk app_versions.compile_sdk_version
     
     defaultConfig {
@@ -34,13 +33,12 @@ android {
         sourceCompatibility JavaVersion.VERSION_11
         targetCompatibility JavaVersion.VERSION_11
     }
-    // 移除 kotlinOptions 块，避免与 AGP 冲突。
 }
 
 dependencies {
     def app_versions = rootProject.ext
 
-    // 引入 core-ktx 以保证 Kotlin 依赖
+    // AndroidX Core 引入了 Kotlin 标准库
     implementation "androidx.core:core-ktx:1.12.0"
     implementation "androidx.appcompat:appcompat:${app_versions.app_compat_version}"
     
@@ -51,4 +49,17 @@ dependencies {
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+}
+
+// ====================================================================
+// 【关键修复块】解决 Kotlin 版本冲突
+// 强制所有依赖使用统一的 Kotlin 版本 (例如 1.8.22)
+// ====================================================================
+configurations.all {
+    resolutionStrategy {
+        // 强制所有传递性依赖使用 1.8.22 版本，覆盖掉旧的 1.6.0 版本
+        force 'org.jetbrains.kotlin:kotlin-stdlib:1.8.22'
+        force 'org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.22'
+        force 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.22'
+    }
 }
