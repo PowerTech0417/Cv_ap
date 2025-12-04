@@ -1,11 +1,24 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
+
 buildscript {
+    ext {
+        // Define common versions here
+        // Using standard/stable versions that should work well
+        min_sdk_version = 21
+        compile_sdk_version = 34
+        target_sdk_version = 34
+        app_compat_version = '1.6.1' // Stable AppCompat version
+        constraint_layout_version = '2.1.4'
+    }
     repositories {
         google()
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.0.0'
+        // Standard Android Gradle Plugin
+        classpath 'com.android.tools.build:gradle:8.2.2' 
+        // NOTE: Do not place your application dependencies here; they belong
+        // in the individual module build.gradle files
     }
 }
 
