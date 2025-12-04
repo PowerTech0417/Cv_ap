@@ -4,12 +4,16 @@ plugins {
 
 android {
     namespace 'com.powertech.linksapp'
-    compileSdk 33
+    
+    // 从 project build.gradle 获取版本号
+    def app_versions = rootProject.ext
 
+    compileSdk app_versions.compile_sdk_version
+    
     defaultConfig {
         applicationId "com.powertech.linksapp"
-        minSdk 21
-        targetSdk 33
+        minSdk app_versions.min_sdk_version
+        targetSdk app_versions.target_sdk_version
         versionCode 1
         versionName "1.0"
 
@@ -23,16 +27,24 @@ android {
         }
     }
     
+    // 兼容 Java 17 或更高版本
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_11
-        targetCompatibility JavaVersion.VERSION_11
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
 }
 
 dependencies {
-    implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'com.google.android.material:material:1.8.0'
-    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    def app_versions = rootProject.ext
+
+    // AndroidX Core and AppCompat are essential for a modern Android app
+    implementation "androidx.core:core-ktx:1.12.0"
+    implementation "androidx.appcompat:appcompat:${app_versions.app_compat_version}"
+    
+    // Used by your activity_main.xml layout
+    implementation "androidx.constraintlayout:constraintlayout:${app_versions.constraint_layout_version}"
+    
+    // Standard testing dependencies
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
