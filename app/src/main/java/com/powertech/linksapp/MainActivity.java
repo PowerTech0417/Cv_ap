@@ -25,7 +25,7 @@ public class MainActivity extends AppCompatActivity {
     private ProgressBar progressBar;
     
     // 您的 Worker 地址 (用于 WebView 加载和作为 Referer)
-    private static final String TARGET_URL = "https://linkapp.powertech.workers.dev/";
+    private static final String TARGET_URL = "https://powertech.m3u8-ads.workers.dev/";
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
