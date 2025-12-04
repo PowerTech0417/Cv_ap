@@ -1,6 +1,5 @@
 plugins {
     id 'com.android.application'
-    // 保持这个块简洁，只应用最必要的插件
 }
 
 android {
@@ -8,7 +7,7 @@ android {
     
     def app_versions = rootProject.ext
 
-    // 编译 SDK 保持 34 (AGP 7.4.2 的安全配置)
+    // 编译 SDK 保持 34
     compileSdk app_versions.compile_sdk_version
     
     defaultConfig {
@@ -28,7 +27,7 @@ android {
         }
     }
     
-    // 兼容 Java 11 (AGP 7.4.2 的安全配置)
+    // 兼容 Java 11
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_11
         targetCompatibility JavaVersion.VERSION_11
@@ -42,6 +41,9 @@ dependencies {
     implementation "androidx.core:core-ktx:1.12.0"
     implementation "androidx.appcompat:appcompat:${app_versions.app_compat_version}"
     
+    // 【关键修复】添加 Material Components 依赖，确保所有 M2 属性存在
+    implementation "com.google.android.material:material:1.11.0" 
+    
     // Used by your activity_main.xml layout
     implementation "androidx.constraintlayout:constraintlayout:${app_versions.constraint_layout_version}"
     
@@ -51,13 +53,9 @@ dependencies {
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
 }
 
-// ====================================================================
-// 【关键修复块】解决 Kotlin 版本冲突
-// 强制所有依赖使用统一的 Kotlin 版本 (例如 1.8.22)
-// ====================================================================
+// 解决 Kotlin 版本冲突
 configurations.all {
     resolutionStrategy {
-        // 强制所有传递性依赖使用 1.8.22 版本，覆盖掉旧的 1.6.0 版本
         force 'org.jetbrains.kotlin:kotlin-stdlib:1.8.22'
         force 'org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.22'
         force 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.22'
