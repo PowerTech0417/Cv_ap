@@ -1,4 +1,4 @@
-package com.powertech.linksapp;
+Package com.powertech.linksapp;
 
 import android.annotation.SuppressLint;
 import android.content.ClipData;
@@ -7,12 +7,15 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.webkit.ConsoleMessage;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
+import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -22,9 +25,12 @@ import android.widget.ProgressBar;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
- * Main Activity for the Links App.
- * Handles WebView setup, immersive mode, JavaScript bridge, and video fullscreen support.
+ * Links App 主活动。
+ * 处理 WebView 设置、沉浸式模式、JavaScript 桥接、视频全屏支持和网络兼容性增强。
  */
 public class MainActivity extends AppCompatActivity {
 
@@ -38,44 +44,27 @@ public class MainActivity extends AppCompatActivity {
 
     // 您的 Worker 地址 (用于 WebView 加载和作为 Referer)
     private static final String TARGET_URL = "https://powertech.m3u8-ads.workers.dev/";
+    // 1DM+ 的包名
+    private static final String IDM_PACKAGE = "idm.internet.download.manager.plus";
 
-    @SuppressLint("SetJavaScriptEnabled")
+    @SuppressLint({"SetJavaScriptEnabled", "InlinedApi"})
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         
         // ==================================================================
-        // Set immersive fullscreen mode
-        // ==================================================================
-        final View decorView = getWindow().getDecorView();
-        // Hides status bar, navigation bar, and enables sticky immersive mode
-        decorView.setSystemUiVisibility(
-                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                | View.SYSTEM_UI_FLAG_FULLSCREEN
-                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-        );
-        
-        // 监听 Window 焦点变化，确保全屏模式始终有效
-        decorView.setOnSystemUiVisibilityChangeListener(visibility -> {
-            if ((visibility & View.SYSTEM_UI_FLAG_FULLSCREEN) == 0) {
-                // 恢复全屏模式
-                decorView.setSystemUiVisibility(
-                        View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                        | View.SYSTEM_UI_FLAG_FULLSCREEN
-                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                );
-            }
-        });
+        // 【已修改】移除了设置沉浸式全屏模式的代码块，以确保状态栏可见。
         // ==================================================================
         
-        // Assumes R.layout.activity_main contains WebView (id: webview) and ProgressBar (id: progress_bar)
+        // 假设 R.layout.activity_main 包含 WebView (id: webview) 和 ProgressBar (id: progress_bar)
         setContentView(R.layout.activity_main); 
 
         // 初始化视图
         webView = findViewById(R.id.webview);
         progressBar = findViewById(R.id.progress_bar);
         // 初始化全屏容器
-        mCustomViewContainer = findViewById(android.R.id.content); // 使用默认的 content 容器
+        // 使用根视图 (android.R.id.content) 作为全屏视频的容器
+        mCustomViewContainer = findViewById(android.R.id.content); 
 
         // 配置 WebView 设置
         WebSettings webSettings = webView.getSettings();
@@ -90,53 +79,91 @@ public class MainActivity extends AppCompatActivity {
         webSettings.setCacheMode(WebSettings.LOAD_DEFAULT);
         webSettings.setAllowFileAccess(true);
         webSettings.setAllowContentAccess(true);
-        
-        // 允许 HTML5 视频播放全屏
-        webSettings.setAllowFileAccess(true);
-        webSettings.setAllowContentAccess(true);
         webSettings.setMediaPlaybackRequiresUserGesture(false); // 允许自动播放
         
-        // Inject JavaScript Interface, name it "Android"
+        // 【优化 1】处理混合内容：允许 HTTPS 页面加载 HTTP 资源 (对媒体流至关重要)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            webSettings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+        }
+        
+        // 注入 JavaScript 接口，名称为 "Android"
         webView.addJavascriptInterface(new WebAppInterface(this), "Android");
 
-        // 设置 WebViewClient 来处理页面加载
-        webView.setWebViewClient(new WebViewClient() {
-            @Override
-            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-                // 所有链接都在 WebView 内打开
-                view.loadUrl(request.getUrl().toString());
-                return true;
-            }
+        // 设置 WebViewClient 来处理页面加载、链接跳转和错误
+        webView.setWebViewClient(new CustomWebViewClient());
 
-            @Override
-            public void onPageStarted(WebView view, String url, Bitmap favicon) {
-                super.onPageStarted(view, url, favicon);
-                progressBar.setVisibility(ProgressBar.VISIBLE);
-            }
+        // 设置 WebChromeClient 来处理进度条和视频全屏、Console Log
+        webView.setWebChromeClient(new CustomWebChromeClient());
 
-            @Override
-            public void onPageFinished(WebView view, String url) {
-                super.onPageFinished(view, url);
-                progressBar.setVisibility(ProgressBar.GONE);
-            }
-        });
-
-        // 设置 WebChromeClient 来处理进度条和视频全屏
-        webView.setWebChromeClient(new MyWebChromeClient());
-
-        // 加载目标网站
-        webView.loadUrl(TARGET_URL);
+        // 【优化 2】显式加载目标网站并设置 Referer
+        webView.loadUrl(TARGET_URL, getRefererHeaders());
+    }
+    
+    /**
+     * Helper: 获取包含 Referer 的 Header Map，用于初始加载。
+     */
+    private Map<String, String> getRefererHeaders() {
+        Map<String, String> extraHeaders = new HashMap<>();
+        extraHeaders.put("Referer", TARGET_URL);
+        return extraHeaders;
     }
 
     /**
-     * 自定义的 WebChromeClient，处理视频全屏逻辑
+     * 自定义的 WebViewClient，处理页面加载、链接跳转和错误。
      */
-    public class MyWebChromeClient extends WebChromeClient {
+    public class CustomWebViewClient extends WebViewClient {
+        @Override
+        public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+            // 所有链接都在 WebView 内打开
+            view.loadUrl(request.getUrl().toString());
+            return true;
+        }
+
+        @Override
+        public void onPageStarted(WebView view, String url, Bitmap favicon) {
+            super.onPageStarted(view, url, favicon);
+            progressBar.setVisibility(ProgressBar.VISIBLE);
+            progressBar.setProgress(0); // 重置进度条
+        }
+
+        @Override
+        public void onPageFinished(WebView view, String url) {
+            super.onPageFinished(view, url);
+            progressBar.setVisibility(ProgressBar.GONE);
+        }
+
+        // 【优化 3】处理页面加载错误 (API 23+)
+        @Override
+        public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
+            if (request.isForMainFrame()) {
+                String description = Build.VERSION.SDK_INT >= Build.VERSION_CODES.M 
+                                     ? error.getDescription().toString() 
+                                     : "加载失败";
+                Toast.makeText(MainActivity.this, "网页加载错误: " + description, Toast.LENGTH_LONG).show();
+                // 可以在这里加载一个错误页面
+                // view.loadUrl("about:blank");
+            }
+        }
+        
+        // 处理页面加载错误 (API < 23)
+        @SuppressWarnings("deprecation")
+        @Override
+        public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
+            if (failingUrl.equals(view.getUrl())) {
+                Toast.makeText(MainActivity.this, "网页加载错误: " + description, Toast.LENGTH_LONG).show();
+                // view.loadUrl("about:blank");
+            }
+        }
+    }
+
+    /**
+     * 自定义的 WebChromeClient，处理进度条、视频全屏和 Console Log。
+     */
+    public class CustomWebChromeClient extends WebChromeClient {
         
         // 处理进度条变化
         @Override
         public void onProgressChanged(WebView view, int newProgress) {
-            super.onProgressChanged(view, newProgress);
             if (newProgress < 100) {
                 progressBar.setProgress(newProgress);
                 if (progressBar.getVisibility() != ProgressBar.VISIBLE) {
@@ -145,6 +172,14 @@ public class MainActivity extends AppCompatActivity {
             } else {
                 progressBar.setVisibility(ProgressBar.GONE);
             }
+        }
+        
+        // 捕获 JS Console 输出，用于调试
+        @Override
+        public boolean onConsoleMessage(ConsoleMessage consoleMessage) {
+            // Log.d("WebViewConsole", consoleMessage.message() + " -- From line "
+            //        + consoleMessage.lineNumber() + " of " + consoleMessage.sourceId());
+            return true;
         }
 
         // 处理视频全屏请求
@@ -190,12 +225,9 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
 
-            // 1. 恢复系统的导航栏和状态栏（返回应用全屏模式）
-            getWindow().getDecorView().setSystemUiVisibility(
-                    View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                    | View.SYSTEM_UI_FLAG_FULLSCREEN
-                    | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-            );
+            // 【已修改】恢复系统的导航栏和状态栏（恢复到正常非全屏模式，显示时间线）
+            // 设置为 0 清除所有全屏标志，让系统栏重新显示。
+            getWindow().getDecorView().setSystemUiVisibility(0);
 
             // 2. 移除全屏视频视图
             mCustomViewContainer.removeView(mCustomView);
@@ -213,7 +245,8 @@ public class MainActivity extends AppCompatActivity {
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         // 1. 如果当前处于视频全屏模式，按返回键先退出全屏
         if (keyCode == KeyEvent.KEYCODE_BACK && mCustomView != null) {
-            ((MyWebChromeClient) webView.getWebChromeClient()).onHideCustomView();
+            // 使用 CustomWebChromeClient 的 onHideCustomView 方法
+            ((CustomWebChromeClient) webView.getWebChromeClient()).onHideCustomView();
             return true;
         }
         
@@ -229,6 +262,9 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         if (webView != null) {
+            // 移除所有接口，防止泄漏
+            webView.removeJavascriptInterface("Android"); 
+            // 销毁 WebView 实例
             webView.destroy();
         }
         super.onDestroy();
@@ -274,12 +310,14 @@ public class MainActivity extends AppCompatActivity {
          */
         @JavascriptInterface
         public void startDownload(final String downloadUrl, final String fileName) {
-            // 【关键修复】使用用户提供的正确的 1DM+ 包名
-            final String IDM_PACKAGE = "idm.internet.download.manager.plus"; 
-
+            
             // 1. 创建 final 变量来保存文件名
             String tempFileName = fileName.trim();
-            if (tempFileName.toLowerCase().endsWith(".m3u8")) {
+            // 确保文件名有后缀，或尝试替换常见的媒体后缀
+            if (!tempFileName.toLowerCase().contains(".")) {
+                 // 如果没有后缀，可以默认添加一个
+                 tempFileName += ".mp4"; 
+            } else if (tempFileName.toLowerCase().endsWith(".m3u8")) {
                 tempFileName = tempFileName.replace(".m3u8", ".mp4").trim();
             } 
             
@@ -288,12 +326,9 @@ public class MainActivity extends AppCompatActivity {
 
             // UI operations (like Toast) must run on the main thread
             runOnUiThread(() -> {
-                boolean success = false;
+                boolean success = attemptStartIDM(IDM_PACKAGE, downloadUrl, finalSuggestedFileName); 
 
-                // 1. 尝试使用用户提供的包名启动
-                success = attemptStartIDM(IDM_PACKAGE, downloadUrl, finalSuggestedFileName); 
-
-                // 2. 如果启动失败，通知用户并回退到复制链接
+                // 如果启动失败，通知用户并回退到复制链接
                 if (!success) {
                     Toast.makeText(mContext, "⚠️ 找不到 1DM+ 或启动失败，请检查是否已安装正确的版本。", Toast.LENGTH_LONG).show();
 
@@ -310,7 +345,7 @@ public class MainActivity extends AppCompatActivity {
 
         /**
          * Helper method: attempts to launch a downloader with a specific package name.
-         * @param packageName The package name of the target downloader (e.g., com.dv.aidm.downloader).
+         * @param packageName The package name of the target downloader (e.g., idm.internet.download.manager.plus).
          * @param downloadUrl The URL to pass to the downloader.
          * @param fileName The suggested file name.
          * @return true if the Intent was successfully launched, false otherwise.
@@ -323,14 +358,14 @@ public class MainActivity extends AppCompatActivity {
                 // Force the intent to be handled by the specific downloader app
                 intent.setPackage(packageName);
 
-                // Add extra information (title and Referer are important for download managers)
+                // 添加额外信息 (title 和 Referer 对下载管理器很重要)
                 intent.putExtra(Intent.EXTRA_TITLE, fileName);
                 intent.putExtra("url", downloadUrl);
-                intent.putExtra("Referer", TARGET_URL); // Pass the worker URL as the Referer
+                intent.putExtra("Referer", TARGET_URL); // 传递 worker URL 作为 Referer
 
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 
-                // Check if any app is installed that can handle this Intent (i.e., 1DM+)
+                // 检查是否有应用可以处理此 Intent (即 1DM+)
                 if (mContext.getPackageManager().resolveActivity(intent, 0) != null) {
                     mContext.startActivity(intent);
                     Toast.makeText(mContext, "🚀 任务已发送给 1DM+：" + fileName, Toast.LENGTH_LONG).show();
@@ -339,8 +374,8 @@ public class MainActivity extends AppCompatActivity {
                     return false;
                 }
             } catch (Exception e) {
-                e.printStackTrace();
-                // Return false on exception (e.g., security exception)
+                // 记录异常，如 SecurityException
+                e.printStackTrace(); 
                 return false;
             }
         }
