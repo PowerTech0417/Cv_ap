@@ -278,29 +278,33 @@ public class MainActivity extends AppCompatActivity {
          * @param fileName The suggested name for the downloaded file.
          */
         @JavascriptInterface
-        public void startDownload(String downloadUrl, String fileName) {
-            // Common package names for 1DM+ (IDM+)
+        public void startDownload(final String downloadUrl, final String fileName) {
+            // 将 downloadUrl 和 fileName 声明为 final (可选，但推荐)
+            
             final String IDM_PACKAGE = "com.dv.aidm.downloader";
             final String IDM_PACKAGE_ALT = "com.dv.aidm";
 
-            // Suggest .mp4 extension for M3U8 links to encourage downloader auto-packaging
-            String suggestedFileName = fileName;
-            if (fileName.toLowerCase().endsWith(".m3u8")) {
-                suggestedFileName = fileName.replace(".m3u8", ".mp4").trim();
-            } else {
-                suggestedFileName = fileName.trim();
-            }
+            // 1. 修复：创建 final 变量来保存文件名
+            String tempFileName = fileName.trim();
+            if (tempFileName.toLowerCase().endsWith(".m3u8")) {
+                tempFileName = tempFileName.replace(".m3u8", ".mp4").trim();
+            } 
+            
+            // 【关键修复】将处理后的文件名声明为 final，供 Lambda 表达式使用
+            final String finalSuggestedFileName = tempFileName;
 
             // UI operations (like Toast) must run on the main thread
             runOnUiThread(() -> {
                 boolean success = false;
 
                 // 1. Try starting with the primary 1DM+ package name
-                success = attemptStartIDM(IDM_PACKAGE, downloadUrl, suggestedFileName);
+                // 使用 finalSuggestedFileName
+                success = attemptStartIDM(IDM_PACKAGE, downloadUrl, finalSuggestedFileName); 
 
                 // 2. If failed, try the alternative package name
                 if (!success) {
-                    success = attemptStartIDM(IDM_PACKAGE_ALT, downloadUrl, suggestedFileName);
+                    // 使用 finalSuggestedFileName
+                    success = attemptStartIDM(IDM_PACKAGE_ALT, downloadUrl, finalSuggestedFileName);
                 }
 
                 // 3. If all attempts failed, notify user and fallback to copying the link
