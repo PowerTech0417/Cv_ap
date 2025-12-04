@@ -1,4 +1,4 @@
-package com.powertech.linksapp;
+package com.powertech.linksapp; 
 
 import android.annotation.SuppressLint;
 import android.content.ClipData;
@@ -9,6 +9,7 @@ import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.util.Log; // ✨ 导入 Log 类
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -237,6 +238,9 @@ public class MainActivity extends AppCompatActivity {
             
             // 3. 显示 WebView
             webView.setVisibility(View.VISIBLE);
+            
+            // 【黑屏修复】强制 WebView 重新绘制其内容
+            webView.invalidate(); 
         }
     }
 
@@ -311,6 +315,9 @@ public class MainActivity extends AppCompatActivity {
         @JavascriptInterface
         public void startDownload(final String downloadUrl, final String fileName) {
             
+            // ✨ 调试日志：确认 JS 接口调用是否成功
+            Log.d("DownloadTask", "JS 成功调用 startDownload。URL: " + downloadUrl + ", File: " + fileName);
+            
             // 1. 创建 final 变量来保存文件名
             String tempFileName = fileName.trim();
             // 确保文件名有后缀，或尝试替换常见的媒体后缀
@@ -327,6 +334,9 @@ public class MainActivity extends AppCompatActivity {
             // UI operations (like Toast) must run on the main thread
             runOnUiThread(() -> {
                 boolean success = attemptStartIDM(IDM_PACKAGE, downloadUrl, finalSuggestedFileName); 
+                
+                // ✨ 调试日志：反馈 Java 内部调用 1DM+ 的结果
+                Log.d("DownloadTask", "Attempting 1DM+ launch result: " + (success ? "SUCCESS" : "FAILED"));
 
                 // 如果启动失败，通知用户并回退到复制链接
                 if (!success) {
@@ -375,6 +385,7 @@ public class MainActivity extends AppCompatActivity {
                 }
             } catch (Exception e) {
                 // 记录异常，如 SecurityException
+                Log.e("DownloadTask", "Error attempting to launch IDM+.", e); // ✨ 捕获异常时记录日志
                 e.printStackTrace(); 
                 return false;
             }
