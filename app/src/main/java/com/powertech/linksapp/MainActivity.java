@@ -1,4 +1,4 @@
-Package com.powertech.linksapp;
+package com.powertech.linksapp;
 
 import android.annotation.SuppressLint;
 import android.content.ClipData;
