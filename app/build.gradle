@@ -1,7 +1,7 @@
 plugins {
     id 'com.android.application'
-    // AGP 7.x 版本可能需要显式应用 Kotlin 插件
-    id 'org.jetbrains.kotlin.android' 
+    // 移除显式的 id 'org.jetbrains.kotlin.android' 插件声明。
+    // 我们依赖 AGP 和 'androidx.core:core-ktx' 来处理 Kotlin 依赖，以提高兼容性。
 }
 
 android {
@@ -9,7 +9,7 @@ android {
     
     def app_versions = rootProject.ext
 
-    // 编译 SDK 保持 34，但要确保使用 Java 11
+    // 编译 SDK 保持 34
     compileSdk app_versions.compile_sdk_version
     
     defaultConfig {
@@ -29,21 +29,18 @@ android {
         }
     }
     
-    // 兼容 Java 11，这是 AGP 7.x 版本的安全默认设置
+    // 兼容 Java 11 (AGP 7.4.2 的安全配置)
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_11
         targetCompatibility JavaVersion.VERSION_11
     }
-    // 添加 kotlinOptions 块
-    kotlinOptions {
-        jvmTarget = '11'
-    }
+    // 移除 kotlinOptions 块，避免与 AGP 冲突。
 }
 
 dependencies {
     def app_versions = rootProject.ext
 
-    // AndroidX Core and AppCompat are essential for a modern Android app
+    // 引入 core-ktx 以保证 Kotlin 依赖
     implementation "androidx.core:core-ktx:1.12.0"
     implementation "androidx.appcompat:appcompat:${app_versions.app_compat_version}"
     
