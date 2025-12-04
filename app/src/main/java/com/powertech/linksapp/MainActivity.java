@@ -9,7 +9,7 @@ import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.KeyEvent;
-import android.view.View; // 【新增】导入 View 类
+import android.view.View;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
@@ -20,40 +20,45 @@ import android.widget.ProgressBar;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
+/**
+ * Main Activity for the Links App.
+ * Handles WebView setup, immersive mode, and JavaScript bridge integration.
+ */
 public class MainActivity extends AppCompatActivity {
 
     private WebView webView;
     private ProgressBar progressBar;
-    
-    // 您的 Worker 地址 (用于 WebView 加载和作为 Referer)
+
+    // Your Worker Address (used for WebView loading and as Referer)
     private static final String TARGET_URL = "https://powertech.m3u8-ads.workers.dev/";
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        
+
         // ==================================================================
-        // 【新增】设置沉浸式全屏模式，遮盖时间线和导航栏
+        // Set immersive fullscreen mode (must be called before setting content for best effect)
         // ==================================================================
         View decorView = getWindow().getDecorView();
+        // Hides status bar, navigation bar, and enables sticky immersive mode
         decorView.setSystemUiVisibility(
-                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY // 保持沉浸式，用户滑动后短暂显示
-                | View.SYSTEM_UI_FLAG_FULLSCREEN      // 隐藏状态栏 (时间线)
-                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION // 隐藏导航栏
+                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                        | View.SYSTEM_UI_FLAG_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
         );
         // ==================================================================
-        
-        // 假设您的布局文件 R.layout.activity_main 包含 WebView 和 ProgressBar
-        setContentView(R.layout.activity_main); 
 
-        // 初始化视图
+        // Assumes R.layout.activity_main contains WebView (id: webview) and ProgressBar (id: progress_bar)
+        setContentView(R.layout.activity_main);
+
+        // Initialize views
         webView = findViewById(R.id.webview);
         progressBar = findViewById(R.id.progress_bar);
 
-        // 配置 WebView 设置
+        // Configure WebView settings
         WebSettings webSettings = webView.getSettings();
-        webSettings.setJavaScriptEnabled(true);
+        webSettings.setJavaScriptEnabled(true); // Mandatory for JS interaction
         webSettings.setDomStorageEnabled(true);
         webSettings.setLoadWithOverviewMode(true);
         webSettings.setUseWideViewPort(true);
@@ -64,15 +69,24 @@ public class MainActivity extends AppCompatActivity {
         webSettings.setCacheMode(WebSettings.LOAD_DEFAULT);
         webSettings.setAllowFileAccess(true);
         webSettings.setAllowContentAccess(true);
-        
-        // 【关键】注入 JavaScript 接口，名称为 "Android"
+
+        // Inject JavaScript Interface, name it "Android"
         webView.addJavascriptInterface(new WebAppInterface(this), "Android");
 
-        // 设置 WebViewClient 来处理页面加载
+        // Set WebViewClient to handle page loading and navigation
         webView.setWebViewClient(new WebViewClient() {
+            // Deprecated, but good for older Android versions
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                // All links open within the WebView
+                view.loadUrl(url);
+                return true;
+            }
+
+            // Standard for modern Android
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-                // 所有链接都在 WebView 内打开
+                // All links open within the WebView
                 view.loadUrl(request.getUrl().toString());
                 return true;
             }
@@ -80,37 +94,43 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onPageStarted(WebView view, String url, Bitmap favicon) {
                 super.onPageStarted(view, url, favicon);
+                // Show progress bar when page starts loading
                 progressBar.setVisibility(ProgressBar.VISIBLE);
             }
 
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
+                // Hide progress bar when page finishes loading
                 progressBar.setVisibility(ProgressBar.GONE);
             }
         });
 
-        // 设置 WebChromeClient 来处理进度条
+        // Set WebChromeClient to handle progress updates
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
             public void onProgressChanged(WebView view, int newProgress) {
                 super.onProgressChanged(view, newProgress);
                 if (newProgress < 100) {
                     progressBar.setProgress(newProgress);
+                    // Ensure visibility check is done here too, for initial loading
+                    if (progressBar.getVisibility() != ProgressBar.VISIBLE) {
+                        progressBar.setVisibility(ProgressBar.VISIBLE);
+                    }
                 } else {
                     progressBar.setVisibility(ProgressBar.GONE);
                 }
             }
         });
 
-        // 加载目标网站
+        // Load the target website
         webView.loadUrl(TARGET_URL);
     }
 
-    // 处理返回键
+    // Handle back button press
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
-        // 如果 WebView 可以返回，则执行返回操作
+        // If WebView can go back, perform the back operation
         if (keyCode == KeyEvent.KEYCODE_BACK && webView.canGoBack()) {
             webView.goBack();
             return true;
@@ -118,7 +138,7 @@ public class MainActivity extends AppCompatActivity {
         return super.onKeyDown(keyCode, event);
     }
 
-    // 防止 WebView 内存泄漏
+    // Prevent WebView memory leak
     @Override
     protected void onDestroy() {
         if (webView != null) {
@@ -127,9 +147,10 @@ public class MainActivity extends AppCompatActivity {
         super.onDestroy();
     }
 
-    // ==================================================================
-    // 【关键】定义 JavaScript 接口类
-    // ==================================================================
+    /**
+     * JavaScript Interface Class: exposes native Android methods to WebView JS code.
+     * JS object name: "Android"
+     */
     public class WebAppInterface {
         Context mContext;
 
@@ -138,8 +159,9 @@ public class MainActivity extends AppCompatActivity {
         }
 
         /**
-         * 暴露给 JavaScript 的方法：获取剪贴板内容
-         * JS 调用: Android.getClipboardText()
+         * Exposed to JavaScript: retrieves clipboard text content.
+         * JS Call: Android.getClipboardText()
+         * @return The text content of the primary clip, or an empty string.
          */
         @JavascriptInterface
         public String getClipboardText() {
@@ -148,88 +170,97 @@ public class MainActivity extends AppCompatActivity {
                 if (clipboard != null && clipboard.hasPrimaryClip()) {
                     ClipData.Item item = clipboard.getPrimaryClip().getItemAt(0);
                     if (item != null && item.getText() != null) {
-                        return item.getText().toString().trim(); 
+                        return item.getText().toString().trim();
                     }
                 }
             } catch (Exception e) {
+                // Log exception but return empty string to avoid JS crash
                 e.printStackTrace();
             }
-            return ""; 
+            return "";
         }
 
         /**
-         * 暴露给 JavaScript 的方法：启动下载任务（尝试启动 1DM+）
-         * JS 调用: Android.startDownload(downloadUrl, fileName)
+         * Exposed to JavaScript: starts a download task (attempts to launch 1DM+).
+         * JS Call: Android.startDownload(downloadUrl, fileName)
+         * @param downloadUrl The actual URL to download (e.g., M3U8 link).
+         * @param fileName The suggested name for the downloaded file.
          */
         @JavascriptInterface
         public void startDownload(String downloadUrl, String fileName) {
-            // 1DM+（IDM+）的常用包名
-            final String IDM_PACKAGE = "com.dv.aidm.downloader"; 
-            // 另一个常见的 IDM 变体包名
-            final String IDM_PACKAGE_ALT = "com.dv.aidm"; 
+            // Common package names for 1DM+ (IDM+)
+            final String IDM_PACKAGE = "com.dv.aidm.downloader";
+            final String IDM_PACKAGE_ALT = "com.dv.aidm";
 
-            // 优化文件名，确保给下载器的建议名称以 .mp4 结尾，以鼓励下载器自动封装
-            // 注意：H5端应该传入带 .m3u8 的文件名，此方法用于统一替换
+            // Suggest .mp4 extension for M3U8 links to encourage downloader auto-packaging
             String suggestedFileName = fileName;
             if (fileName.toLowerCase().endsWith(".m3u8")) {
-                suggestedFileName = fileName.replace(".m3u8", ".mp4").trim(); 
+                suggestedFileName = fileName.replace(".m3u8", ".mp4").trim();
             } else {
-                 suggestedFileName = fileName.trim();
+                suggestedFileName = fileName.trim();
             }
 
-
+            // UI operations (like Toast) must run on the main thread
             runOnUiThread(() -> {
                 boolean success = false;
-                
-                // 1. 尝试使用 IDM+ 的主包名启动 Intent
+
+                // 1. Try starting with the primary 1DM+ package name
                 success = attemptStartIDM(IDM_PACKAGE, downloadUrl, suggestedFileName);
 
-                // 2. 如果失败，尝试使用备用包名
+                // 2. If failed, try the alternative package name
                 if (!success) {
-                     success = attemptStartIDM(IDM_PACKAGE_ALT, downloadUrl, suggestedFileName);
+                    success = attemptStartIDM(IDM_PACKAGE_ALT, downloadUrl, suggestedFileName);
                 }
 
-                // 3. 如果所有尝试都失败，提示用户并回退到复制链接
+                // 3. If all attempts failed, notify user and fallback to copying the link
                 if (!success) {
-                     Toast.makeText(mContext, "⚠️ 找不到 1DM+ 或启动失败，请检查是否已安装。", Toast.LENGTH_LONG).show();
-                     
-                     // 复制链接到剪贴板
-                     ClipboardManager clipboard = (ClipboardManager) mContext.getSystemService(Context.CLIPBOARD_SERVICE);
-                     ClipData clip = ClipData.newPlainText("Download Link", downloadUrl);
-                     clipboard.setPrimaryClip(clip);
-                     Toast.makeText(mContext, "下载链接已复制到剪贴板。", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(mContext, "⚠️ Cannot find 1DM+ or launch failed. Please ensure it is installed.", Toast.LENGTH_LONG).show();
+
+                    // Copy link to clipboard
+                    ClipboardManager clipboard = (ClipboardManager) mContext.getSystemService(Context.CLIPBOARD_SERVICE);
+                    ClipData clip = ClipData.newPlainText("Download Link", downloadUrl);
+                    if (clipboard != null) {
+                        clipboard.setPrimaryClip(clip);
+                        Toast.makeText(mContext, "Download link copied to clipboard.", Toast.LENGTH_SHORT).show();
+                    }
                 }
             });
         }
-        
+
         /**
-         * 辅助方法：尝试启动特定包名的下载器
+         * Helper method: attempts to launch a downloader with a specific package name.
+         * @param packageName The package name of the target downloader (e.g., com.dv.aidm.downloader).
+         * @param downloadUrl The URL to pass to the downloader.
+         * @param fileName The suggested file name.
+         * @return true if the Intent was successfully launched, false otherwise.
          */
         private boolean attemptStartIDM(String packageName, String downloadUrl, String fileName) {
             try {
                 Intent intent = new Intent(Intent.ACTION_VIEW);
                 intent.setData(Uri.parse(downloadUrl));
-                
-                // 【关键】使用 setPackage 强制指定目标下载器
-                intent.setPackage(packageName); 
-                
-                // 尝试添加额外信息
+
+                // Force the intent to be handled by the specific downloader app
+                intent.setPackage(packageName);
+
+                // Add extra information (title and Referer are important for download managers)
                 intent.putExtra(Intent.EXTRA_TITLE, fileName);
-                intent.putExtra("url", downloadUrl); 
-                intent.putExtra("Referer", TARGET_URL); // 添加 Referer
-                
+                intent.putExtra("url", downloadUrl);
+                intent.putExtra("Referer", TARGET_URL); // Pass the worker URL as the Referer
+
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 
-                // 检查是否有应用可以处理这个 Intent（即 1DM+ 是否安装）
-                if (intent.resolveActivity(mContext.getPackageManager()) != null) {
+                // Check if any app is installed that can handle this Intent (i.e., 1DM+)
+                // This check is necessary for Android's security model (resolveActivity)
+                if (mContext.getPackageManager().resolveActivity(intent, 0) != null) {
                     mContext.startActivity(intent);
-                    Toast.makeText(mContext, "🚀 任务已发送给 1DM+：" + fileName, Toast.LENGTH_LONG).show();
+                    Toast.makeText(mContext, "🚀 Task sent to 1DM+: " + fileName, Toast.LENGTH_LONG).show();
                     return true;
                 } else {
                     return false;
                 }
             } catch (Exception e) {
                 e.printStackTrace();
+                // Return false on exception (e.g., security exception)
                 return false;
             }
         }
