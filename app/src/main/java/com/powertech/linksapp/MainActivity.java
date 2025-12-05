@@ -330,8 +330,8 @@ public class MainActivity extends AppCompatActivity {
          * @param fileName The suggested name for the downloaded file.
          */
         @JavascriptInterface
-        public void startDownload(final String downloadUrl, final String String fileName) {
-            
+        public void startDownload(final String downloadUrl, final String fileName) {
+
             // 调试日志：确认 JS 接口调用是否成功
             Log.d("DownloadTask", "JS 成功调用 startDownload。URL: " + downloadUrl + ", File: " + fileName);
             
