@@ -9,7 +9,7 @@ import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.util.Log; // ✨ 导入 Log 类
+import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -209,13 +209,14 @@ public class MainActivity extends AppCompatActivity {
             mCustomViewContainer.setVisibility(View.VISIBLE);
             
             // 5. 隐藏系统的导航栏和状态栏（针对全屏视频）
+            // ✨ 修复：使用 IMMERSIVE_STICKY，让系统栏在用户滑动后自动隐藏
             getWindow().getDecorView().setSystemUiVisibility(
                     View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                     | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
                     | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
                     | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
                     | View.SYSTEM_UI_FLAG_FULLSCREEN
-                    | View.SYSTEM_UI_FLAG_IMMERSIVE
+                    | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY // 【关键修复点】使用粘性模式
             );
         }
 
@@ -226,7 +227,7 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
 
-            // 【已修改】恢复系统的导航栏和状态栏（恢复到正常非全屏模式，显示时间线）
+            // 1. 恢复系统的导航栏和状态栏（恢复到正常非全屏模式，显示时间线）
             // 设置为 0 清除所有全屏标志，让系统栏重新显示。
             getWindow().getDecorView().setSystemUiVisibility(0);
 
@@ -315,7 +316,7 @@ public class MainActivity extends AppCompatActivity {
         @JavascriptInterface
         public void startDownload(final String downloadUrl, final String fileName) {
             
-            // ✨ 调试日志：确认 JS 接口调用是否成功
+            // 调试日志：确认 JS 接口调用是否成功
             Log.d("DownloadTask", "JS 成功调用 startDownload。URL: " + downloadUrl + ", File: " + fileName);
             
             // 1. 创建 final 变量来保存文件名
@@ -335,7 +336,7 @@ public class MainActivity extends AppCompatActivity {
             runOnUiThread(() -> {
                 boolean success = attemptStartIDM(IDM_PACKAGE, downloadUrl, finalSuggestedFileName); 
                 
-                // ✨ 调试日志：反馈 Java 内部调用 1DM+ 的结果
+                // 调试日志：反馈 Java 内部调用 1DM+ 的结果
                 Log.d("DownloadTask", "Attempting 1DM+ launch result: " + (success ? "SUCCESS" : "FAILED"));
 
                 // 如果启动失败，通知用户并回退到复制链接
@@ -385,7 +386,7 @@ public class MainActivity extends AppCompatActivity {
                 }
             } catch (Exception e) {
                 // 记录异常，如 SecurityException
-                Log.e("DownloadTask", "Error attempting to launch IDM+.", e); // ✨ 捕获异常时记录日志
+                Log.e("DownloadTask", "Error attempting to launch IDM+.", e); // 捕获异常时记录日志
                 e.printStackTrace(); 
                 return false;
             }
