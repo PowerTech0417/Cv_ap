@@ -191,6 +191,8 @@ public class MainActivity extends AppCompatActivity {
             progressBar.setVisibility(View.GONE);
             
             // 2. 隐藏 WebView
+            // 【增强】在隐藏前设置为透明，防止残留的黑色背景
+            webView.setBackgroundColor(0); 
             webView.setVisibility(View.GONE);
             
             // 3. 设置全屏视图
@@ -235,18 +237,27 @@ public class MainActivity extends AppCompatActivity {
             // 3. 显示 WebView
             webView.setVisibility(View.VISIBLE);
             
-            // 【黑屏修复 - 终极版】使用 post() 确保在 View 移除和显示操作完成后，
-            // 强制 WebView 重新渲染。这可以解决复杂的渲染线程同步问题。
-            webView.post(() -> {
-                // 1. 切换 LayerType (强制 GPU 重新初始化渲染表面)
+            // 【黑屏修复 - 最终尝试】使用 postDelayed() 确保在 View 移除和显示操作完成后，
+            // 强制 WebView 重新渲染。
+            webView.postDelayed(() -> {
+                // 1. 临时设置白色背景，强制重绘底层 Surface
+                webView.setBackgroundColor(0xFFFFFFFF); // Color.WHITE 
+                
+                // 切换 LayerType (强制 GPU 重新初始化渲染表面)
                 webView.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
                 webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
-
-                // 2. 强制请求布局和重绘
+                
+                // 强制请求布局和重绘
                 webView.requestLayout();
                 webView.invalidate();
-                Log.d("BlackScreenFix", "WebView forced redraw sequence executed.");
-            });
+                
+                // 2. 再次延时，将背景色重置为透明，以显示网页内容
+                webView.postDelayed(() -> {
+                    webView.setBackgroundColor(0); // 重置为透明
+                }, 100); // 100ms 后重置背景
+                
+                Log.d("BlackScreenFix", "WebView final redraw sequence executed.");
+            }, 50); // 延迟 50ms 运行，给系统时间处理视图移除
         }
     }
 
@@ -319,7 +330,7 @@ public class MainActivity extends AppCompatActivity {
          * @param fileName The suggested name for the downloaded file.
          */
         @JavascriptInterface
-        public void startDownload(final String downloadUrl, final String fileName) {
+        public void startDownload(final String downloadUrl, final String String fileName) {
             
             // 调试日志：确认 JS 接口调用是否成功
             Log.d("DownloadTask", "JS 成功调用 startDownload。URL: " + downloadUrl + ", File: " + fileName);
