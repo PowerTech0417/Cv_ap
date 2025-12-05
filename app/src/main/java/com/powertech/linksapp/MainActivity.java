@@ -53,10 +53,6 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         
-        // ==================================================================
-        // 【已修改】移除了设置沉浸式全屏模式的代码块，以确保状态栏可见。
-        // ==================================================================
-        
         // 假设 R.layout.activity_main 包含 WebView (id: webview) 和 ProgressBar (id: progress_bar)
         setContentView(R.layout.activity_main); 
 
@@ -82,7 +78,7 @@ public class MainActivity extends AppCompatActivity {
         webSettings.setAllowContentAccess(true);
         webSettings.setMediaPlaybackRequiresUserGesture(false); // 允许自动播放
         
-        // 【优化 1】处理混合内容：允许 HTTPS 页面加载 HTTP 资源 (对媒体流至关重要)
+        // 处理混合内容：允许 HTTPS 页面加载 HTTP 资源 (对媒体流至关重要)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             webSettings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
         }
@@ -96,7 +92,7 @@ public class MainActivity extends AppCompatActivity {
         // 设置 WebChromeClient 来处理进度条和视频全屏、Console Log
         webView.setWebChromeClient(new CustomWebChromeClient());
 
-        // 【优化 2】显式加载目标网站并设置 Referer
+        // 显式加载目标网站并设置 Referer
         webView.loadUrl(TARGET_URL, getRefererHeaders());
     }
     
@@ -133,7 +129,7 @@ public class MainActivity extends AppCompatActivity {
             progressBar.setVisibility(ProgressBar.GONE);
         }
 
-        // 【优化 3】处理页面加载错误 (API 23+)
+        // 处理页面加载错误 (API 23+)
         @Override
         public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
             if (request.isForMainFrame()) {
@@ -227,7 +223,7 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
 
-            // 1. 恢复系统的导航栏和状态栏（恢复到正常非全屏模式，显示时间线）
+            // 1. 恢复系统的导航栏和状态栏
             getWindow().getDecorView().setSystemUiVisibility(0);
 
             // 2. 移除全屏视频视图
@@ -239,13 +235,18 @@ public class MainActivity extends AppCompatActivity {
             // 3. 显示 WebView
             webView.setVisibility(View.VISIBLE);
             
-            // 【黑屏修复 - 增强】通过切换 LayerType 强制重绘，解决视频退出后的黑屏问题
-            // 临时切换到软件层，然后再切换回硬件层，这是一个公认的可靠修复方法。
-            webView.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
-            webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+            // 【黑屏修复 - 终极版】使用 post() 确保在 View 移除和显示操作完成后，
+            // 强制 WebView 重新渲染。这可以解决复杂的渲染线程同步问题。
+            webView.post(() -> {
+                // 1. 切换 LayerType (强制 GPU 重新初始化渲染表面)
+                webView.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+                webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
 
-            // 强制 WebView 重新绘制其内容
-            webView.invalidate(); 
+                // 2. 强制请求布局和重绘
+                webView.requestLayout();
+                webView.invalidate();
+                Log.d("BlackScreenFix", "WebView forced redraw sequence executed.");
+            });
         }
     }
 
