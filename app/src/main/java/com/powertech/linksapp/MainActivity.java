@@ -209,14 +209,14 @@ public class MainActivity extends AppCompatActivity {
             mCustomViewContainer.setVisibility(View.VISIBLE);
             
             // 5. 隐藏系统的导航栏和状态栏（针对全屏视频）
-            // ✨ 修复：使用 IMMERSIVE_STICKY，让系统栏在用户滑动后自动隐藏
+            // 使用 IMMERSIVE_STICKY，让系统栏在用户滑动后自动隐藏
             getWindow().getDecorView().setSystemUiVisibility(
                     View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                     | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
                     | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
                     | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
                     | View.SYSTEM_UI_FLAG_FULLSCREEN
-                    | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY // 【关键修复点】使用粘性模式
+                    | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY 
             );
         }
 
@@ -228,7 +228,6 @@ public class MainActivity extends AppCompatActivity {
             }
 
             // 1. 恢复系统的导航栏和状态栏（恢复到正常非全屏模式，显示时间线）
-            // 设置为 0 清除所有全屏标志，让系统栏重新显示。
             getWindow().getDecorView().setSystemUiVisibility(0);
 
             // 2. 移除全屏视频视图
@@ -240,7 +239,12 @@ public class MainActivity extends AppCompatActivity {
             // 3. 显示 WebView
             webView.setVisibility(View.VISIBLE);
             
-            // 【黑屏修复】强制 WebView 重新绘制其内容
+            // 【黑屏修复 - 增强】通过切换 LayerType 强制重绘，解决视频退出后的黑屏问题
+            // 临时切换到软件层，然后再切换回硬件层，这是一个公认的可靠修复方法。
+            webView.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+            webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+
+            // 强制 WebView 重新绘制其内容
             webView.invalidate(); 
         }
     }
