@@ -6,11 +6,11 @@ import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
-import android.graphics.Color; // 导入 Color 类
+import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Handler; // 导入 Handler 类
+import android.os.Handler;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
@@ -34,6 +34,7 @@ import java.util.Map;
 /**
  * Links App 主活动。
  * 处理 WebView 设置、沉浸式模式、JavaScript 桥接、视频全屏支持和网络兼容性增强。
+ * 已集成【增强版全屏返回黑屏修复】。
  */
 public class MainActivity extends AppCompatActivity {
 
@@ -42,7 +43,6 @@ public class MainActivity extends AppCompatActivity {
     
     // 用于处理视频全屏的视图和容器
     private View mCustomView;
-    // 【修复】将 mCustomViewContainer 设为 FrameLayout 类型
     private FrameLayout mCustomViewContainer; 
     private WebChromeClient.CustomViewCallback mCustomViewCallback;
 
@@ -60,19 +60,14 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         
         // 假设 R.layout.activity_main 包含 WebView (id: webview) 和 ProgressBar (id: progress_bar)
-        // 【关键】确保您的 activity_main.xml 的根视图是一个 FrameLayout，或者包含一个 id 为 fullscreen_video_container 的 FrameLayout
         setContentView(R.layout.activity_main); 
 
         // 初始化视图
         webView = findViewById(R.id.webview);
         progressBar = findViewById(R.id.progress_bar);
         
-        // 【修复】使用 WebView 的父容器或一个专门的 FrameLayout 作为全屏容器，以避免布局冲突。
-        // 假设 activity_main.xml 中有一个 id 为 fullscreen_video_container 的 FrameLayout
-        // 如果您的布局根视图就是 FrameLayout，可以这样获取：
-        // mCustomViewContainer = findViewById(android.R.id.content);
-        // 为了安全起见，我们假设您的布局中有一个单独的 FrameLayout：
-        mCustomViewContainer = (FrameLayout) findViewById(android.R.id.content); // 默认使用根视图
+        // 使用根视图 (android.R.id.content) 作为全屏视频的容器
+        mCustomViewContainer = (FrameLayout) findViewById(android.R.id.content); 
 
         // 配置 WebView 设置
         WebSettings webSettings = webView.getSettings();
@@ -137,7 +132,7 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onPageFinished(WebView view, String url) {
             super.onPageFinished(view, url);
-            progressBar.setVisibility(ProgressBar.GONE);
+            progressBar.setVisibility(View.GONE);
         }
 
         // 处理页面加载错误 (API 23+)
@@ -163,6 +158,7 @@ public class MainActivity extends AppCompatActivity {
 
     /**
      * 自定义的 WebChromeClient，处理进度条、视频全屏和 Console Log。
+     * 【黑屏修复增强版】
      */
     public class CustomWebChromeClient extends WebChromeClient {
         
@@ -197,7 +193,9 @@ public class MainActivity extends AppCompatActivity {
             
             progressBar.setVisibility(View.GONE);
             
-            // 【优化】在隐藏前设置为透明，防止残留的黑色背景
+            // 【增强修复 1/2】进入全屏前，临时切换到软件渲染，防止底层 SurfaceView 残留
+            webView.setLayerType(View.LAYER_TYPE_SOFTWARE, null); 
+            
             webView.setBackgroundColor(Color.TRANSPARENT); 
             webView.setVisibility(View.GONE);
             
@@ -210,8 +208,7 @@ public class MainActivity extends AppCompatActivity {
             ));
             mCustomViewContainer.setVisibility(View.VISIBLE);
             
-            // 【优化】隐藏系统的导航栏和状态栏（针对全屏视频）
-            // 使用 IMMERSIVE_STICKY 确保全屏模式稳定
+            // 隐藏系统的导航栏和状态栏
             getWindow().getDecorView().setSystemUiVisibility(
                     View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                     | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
@@ -241,28 +238,30 @@ public class MainActivity extends AppCompatActivity {
             // 3. 显示 WebView
             webView.setVisibility(View.VISIBLE);
             
-            // 4. 【核心黑屏修复】使用 Handler 强制进行分步重绘
+            // 4. 【核心黑屏修复 2/2】使用 Handler 强制进行分步重绘和硬件加速重置
             handler.postDelayed(() -> {
-                Log.d("BlackScreenFix", "Phase 1: Force white background for redrawing.");
+                Log.d("BlackScreenFix", "Phase 1: Starting hardware acceleration reset.");
                 
-                // 4.1. 临时设置白色背景，强制重绘底层 Surface
-                webView.setBackgroundColor(Color.WHITE); 
-                
-                // 4.2. 切换 LayerType (强制 GPU 重新初始化渲染表面)
-                webView.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+                // 4.1. 强制重新启用硬件加速 (关键步骤)
                 webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
                 
-                // 4.3. 强制请求布局和重绘
+                // 4.2. 强制请求布局和重绘
                 webView.requestLayout();
                 webView.invalidate();
+
+                // 4.3. 临时加载一个空白 URL，迫使 WebView 引擎刷新
+                webView.loadUrl("javascript:void(0)");
                 
-                // 4.4. 再次延时，将背景色重置为透明，以显示网页内容
+                // 4.4. 延迟 200ms 后，再次确认硬件加速状态，并执行 Scroll Hack，进一步刺激渲染
                 handler.postDelayed(() -> {
-                    Log.d("BlackScreenFix", "Phase 2: Reset background to transparent.");
-                    webView.setBackgroundColor(Color.TRANSPARENT); 
-                }, 100); 
+                     webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+                     // 滚动 hack：移动 1 像素再移回，强制重绘
+                     webView.scrollTo(webView.getScrollX() + 1, webView.getScrollY());
+                     webView.scrollTo(webView.getScrollX() - 1, webView.getScrollY());
+                     Log.d("BlackScreenFix", "Phase 2: Final render scroll hack executed.");
+                }, 200); 
                 
-            }, 50); // 延迟 50ms 运行，给系统时间处理视图移除
+            }, 50); // 延迟 50ms 运行
         }
     }
 
