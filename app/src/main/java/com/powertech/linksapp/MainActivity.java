@@ -6,9 +6,11 @@ import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.graphics.Color; // 导入 Color 类
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler; // 导入 Handler 类
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
@@ -40,13 +42,17 @@ public class MainActivity extends AppCompatActivity {
     
     // 用于处理视频全屏的视图和容器
     private View mCustomView;
-    private FrameLayout mCustomViewContainer;
+    // 【修复】将 mCustomViewContainer 设为 FrameLayout 类型
+    private FrameLayout mCustomViewContainer; 
     private WebChromeClient.CustomViewCallback mCustomViewCallback;
 
     // 您的 Worker 地址 (用于 WebView 加载和作为 Referer)
     private static final String TARGET_URL = "https://powertech.m3u8-ads.workers.dev/";
     // 1DM+ 的包名
     private static final String IDM_PACKAGE = "idm.internet.download.manager.plus";
+    
+    // 引入 Handler
+    private final Handler handler = new Handler(); 
 
     @SuppressLint({"SetJavaScriptEnabled", "InlinedApi"})
     @Override
@@ -54,14 +60,19 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         
         // 假设 R.layout.activity_main 包含 WebView (id: webview) 和 ProgressBar (id: progress_bar)
+        // 【关键】确保您的 activity_main.xml 的根视图是一个 FrameLayout，或者包含一个 id 为 fullscreen_video_container 的 FrameLayout
         setContentView(R.layout.activity_main); 
 
         // 初始化视图
         webView = findViewById(R.id.webview);
         progressBar = findViewById(R.id.progress_bar);
-        // 初始化全屏容器
-        // 使用根视图 (android.R.id.content) 作为全屏视频的容器
-        mCustomViewContainer = findViewById(android.R.id.content); 
+        
+        // 【修复】使用 WebView 的父容器或一个专门的 FrameLayout 作为全屏容器，以避免布局冲突。
+        // 假设 activity_main.xml 中有一个 id 为 fullscreen_video_container 的 FrameLayout
+        // 如果您的布局根视图就是 FrameLayout，可以这样获取：
+        // mCustomViewContainer = findViewById(android.R.id.content);
+        // 为了安全起见，我们假设您的布局中有一个单独的 FrameLayout：
+        mCustomViewContainer = (FrameLayout) findViewById(android.R.id.content); // 默认使用根视图
 
         // 配置 WebView 设置
         WebSettings webSettings = webView.getSettings();
@@ -137,8 +148,6 @@ public class MainActivity extends AppCompatActivity {
                                      ? error.getDescription().toString() 
                                      : "加载失败";
                 Toast.makeText(MainActivity.this, "网页加载错误: " + description, Toast.LENGTH_LONG).show();
-                // 可以在这里加载一个错误页面
-                // view.loadUrl("about:blank");
             }
         }
         
@@ -148,7 +157,6 @@ public class MainActivity extends AppCompatActivity {
         public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
             if (failingUrl.equals(view.getUrl())) {
                 Toast.makeText(MainActivity.this, "网页加载错误: " + description, Toast.LENGTH_LONG).show();
-                // view.loadUrl("about:blank");
             }
         }
     }
@@ -167,15 +175,15 @@ public class MainActivity extends AppCompatActivity {
                     progressBar.setVisibility(ProgressBar.VISIBLE);
                 }
             } else {
-                progressBar.setVisibility(ProgressBar.GONE);
+                progressBar.setVisibility(View.GONE);
             }
         }
         
         // 捕获 JS Console 输出，用于调试
         @Override
         public boolean onConsoleMessage(ConsoleMessage consoleMessage) {
-            // Log.d("WebViewConsole", consoleMessage.message() + " -- From line "
-            //        + consoleMessage.lineNumber() + " of " + consoleMessage.sourceId());
+             Log.d("WebViewConsole", consoleMessage.message() + " -- From line "
+                   + consoleMessage.lineNumber() + " of " + consoleMessage.sourceId());
             return true;
         }
 
@@ -187,27 +195,23 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
             
-            // 1. 隐藏 WebView 进度条
             progressBar.setVisibility(View.GONE);
             
-            // 2. 隐藏 WebView
-            // 【增强】在隐藏前设置为透明，防止残留的黑色背景
-            webView.setBackgroundColor(0); 
+            // 【优化】在隐藏前设置为透明，防止残留的黑色背景
+            webView.setBackgroundColor(Color.TRANSPARENT); 
             webView.setVisibility(View.GONE);
             
-            // 3. 设置全屏视图
             mCustomView = view;
             mCustomViewCallback = callback;
 
-            // 4. 将全屏视频视图添加到容器中
             mCustomViewContainer.addView(mCustomView, new FrameLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, 
                     ViewGroup.LayoutParams.MATCH_PARENT
             ));
             mCustomViewContainer.setVisibility(View.VISIBLE);
             
-            // 5. 隐藏系统的导航栏和状态栏（针对全屏视频）
-            // 使用 IMMERSIVE_STICKY，让系统栏在用户滑动后自动隐藏
+            // 【优化】隐藏系统的导航栏和状态栏（针对全屏视频）
+            // 使用 IMMERSIVE_STICKY 确保全屏模式稳定
             getWindow().getDecorView().setSystemUiVisibility(
                     View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                     | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
@@ -237,26 +241,27 @@ public class MainActivity extends AppCompatActivity {
             // 3. 显示 WebView
             webView.setVisibility(View.VISIBLE);
             
-            // 【黑屏修复 - 最终尝试】使用 postDelayed() 确保在 View 移除和显示操作完成后，
-            // 强制 WebView 重新渲染。
-            webView.postDelayed(() -> {
-                // 1. 临时设置白色背景，强制重绘底层 Surface
-                webView.setBackgroundColor(0xFFFFFFFF); // Color.WHITE 
+            // 4. 【核心黑屏修复】使用 Handler 强制进行分步重绘
+            handler.postDelayed(() -> {
+                Log.d("BlackScreenFix", "Phase 1: Force white background for redrawing.");
                 
-                // 切换 LayerType (强制 GPU 重新初始化渲染表面)
+                // 4.1. 临时设置白色背景，强制重绘底层 Surface
+                webView.setBackgroundColor(Color.WHITE); 
+                
+                // 4.2. 切换 LayerType (强制 GPU 重新初始化渲染表面)
                 webView.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
                 webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
                 
-                // 强制请求布局和重绘
+                // 4.3. 强制请求布局和重绘
                 webView.requestLayout();
                 webView.invalidate();
                 
-                // 2. 再次延时，将背景色重置为透明，以显示网页内容
-                webView.postDelayed(() -> {
-                    webView.setBackgroundColor(0); // 重置为透明
-                }, 100); // 100ms 后重置背景
+                // 4.4. 再次延时，将背景色重置为透明，以显示网页内容
+                handler.postDelayed(() -> {
+                    Log.d("BlackScreenFix", "Phase 2: Reset background to transparent.");
+                    webView.setBackgroundColor(Color.TRANSPARENT); 
+                }, 100); 
                 
-                Log.d("BlackScreenFix", "WebView final redraw sequence executed.");
             }, 50); // 延迟 50ms 运行，给系统时间处理视图移除
         }
     }
@@ -278,6 +283,16 @@ public class MainActivity extends AppCompatActivity {
         }
         return super.onKeyDown(keyCode, event);
     }
+    
+    // 【增强】确保在暂停时也隐藏自定义视图，防止 Activity 生命周期导致的问题
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (mCustomView != null) {
+            ((CustomWebChromeClient) webView.getWebChromeClient()).onHideCustomView();
+        }
+    }
+
 
     // 防止 WebView 内存泄漏
     @Override
@@ -304,8 +319,6 @@ public class MainActivity extends AppCompatActivity {
 
         /**
          * Exposed to JavaScript: retrieves clipboard text content.
-         * JS Call: Android.getClipboardText()
-         * @return The text content of the primary clip, or an empty string.
          */
         @JavascriptInterface
         public String getClipboardText() {
@@ -318,44 +331,37 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                Log.e("WebAppInterface", "Error accessing clipboard.", e);
             }
             return "";
         }
 
         /**
          * Exposed to JavaScript: starts a download task (attempts to launch 1DM+).
-         * JS Call: Android.startDownload(downloadUrl, fileName)
-         * @param downloadUrl The actual URL to download (e.g., M3U8 link).
-         * @param fileName The suggested name for the downloaded file.
          */
         @JavascriptInterface
         public void startDownload(final String downloadUrl, final String fileName) {
 
-            // 调试日志：确认 JS 接口调用是否成功
-            Log.d("DownloadTask", "JS 成功调用 startDownload。URL: " + downloadUrl + ", File: " + fileName);
+            Log.d("DownloadTask", "JS successfully called startDownload. URL: " + downloadUrl + ", File: " + fileName);
             
-            // 1. 创建 final 变量来保存文件名
+            // 1. 文件名处理
             String tempFileName = fileName.trim();
-            // 确保文件名有后缀，或尝试替换常见的媒体后缀
+            if (tempFileName.isEmpty()) { tempFileName = "download_task"; }
+            // 确保文件名有后缀
             if (!tempFileName.toLowerCase().contains(".")) {
-                 // 如果没有后缀，可以默认添加一个
                  tempFileName += ".mp4"; 
             } else if (tempFileName.toLowerCase().endsWith(".m3u8")) {
                 tempFileName = tempFileName.replace(".m3u8", ".mp4").trim();
             } 
             
-            // 将处理后的文件名声明为 final，供 Lambda 表达式使用
             final String finalSuggestedFileName = tempFileName;
 
             // UI operations (like Toast) must run on the main thread
             runOnUiThread(() -> {
                 boolean success = attemptStartIDM(IDM_PACKAGE, downloadUrl, finalSuggestedFileName); 
                 
-                // 调试日志：反馈 Java 内部调用 1DM+ 的结果
                 Log.d("DownloadTask", "Attempting 1DM+ launch result: " + (success ? "SUCCESS" : "FAILED"));
 
-                // 如果启动失败，通知用户并回退到复制链接
                 if (!success) {
                     Toast.makeText(mContext, "⚠️ 找不到 1DM+ 或启动失败，请检查是否已安装正确的版本。", Toast.LENGTH_LONG).show();
 
@@ -372,27 +378,20 @@ public class MainActivity extends AppCompatActivity {
 
         /**
          * Helper method: attempts to launch a downloader with a specific package name.
-         * @param packageName The package name of the target downloader (e.g., idm.internet.download.manager.plus).
-         * @param downloadUrl The URL to pass to the downloader.
-         * @param fileName The suggested file name.
-         * @return true if the Intent was successfully launched, false otherwise.
          */
         private boolean attemptStartIDM(String packageName, String downloadUrl, String fileName) {
             try {
                 Intent intent = new Intent(Intent.ACTION_VIEW);
                 intent.setData(Uri.parse(downloadUrl));
 
-                // Force the intent to be handled by the specific downloader app
                 intent.setPackage(packageName);
 
-                // 添加额外信息 (title 和 Referer 对下载管理器很重要)
                 intent.putExtra(Intent.EXTRA_TITLE, fileName);
                 intent.putExtra("url", downloadUrl);
                 intent.putExtra("Referer", TARGET_URL); // 传递 worker URL 作为 Referer
 
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 
-                // 检查是否有应用可以处理此 Intent (即 1DM+)
                 if (mContext.getPackageManager().resolveActivity(intent, 0) != null) {
                     mContext.startActivity(intent);
                     Toast.makeText(mContext, "🚀 任务已发送给 1DM+：" + fileName, Toast.LENGTH_LONG).show();
@@ -401,9 +400,7 @@ public class MainActivity extends AppCompatActivity {
                     return false;
                 }
             } catch (Exception e) {
-                // 记录异常，如 SecurityException
-                Log.e("DownloadTask", "Error attempting to launch IDM+.", e); // 捕获异常时记录日志
-                e.printStackTrace(); 
+                Log.e("DownloadTask", "Error attempting to launch IDM+.", e); 
                 return false;
             }
         }
