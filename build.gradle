@@ -15,7 +15,7 @@ buildscript {
     }
     dependencies {
         // 【关键修复】将 AGP 版本降级到 7.4.2，以兼容构建环境中强制使用的 Gradle 8.0
-        classpath 'com.android.tools.build:gradle:7.4.2' 
+        classpath 'com.android.tools.build:gradle:8.1.0' 
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.20"
     }
 }
