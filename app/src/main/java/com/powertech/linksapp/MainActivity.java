@@ -5,7 +5,7 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.graphics.Bitmap;
-import android.graphics.Color; // 【新增导入】
+import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -35,6 +35,7 @@ import java.util.Map;
  * 2. 利用原生的 WebChromeClient 视频全屏机制。
  * 3. 修复：在 onHideCustomView 时正确移除全屏视图，解决返回主页黑屏。
  * 4. 增强：设置状态栏和导航栏为黑底白字，并在全屏时隐藏。
+ * 5. 修复：在播放时保持屏幕常亮 (FLAG_KEEP_SCREEN_ON)。
  */
 public class MainActivity extends AppCompatActivity {
 
@@ -60,12 +61,14 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         
         // =========================================================
-        // 【新增代码】设置状态栏和导航栏样式为黑底白字
+        // 【屏幕常亮修复】保持屏幕常亮，防止息屏
         // =========================================================
+        getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        // =========================================================
+        
+        // 设置状态栏和导航栏样式为黑底白字 (保持不变)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            // 确保文字是白色（黑底白字）
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                // 清除 SYSTEM_UI_FLAG_LIGHT_STATUS_BAR 确保文字是白色
                 getWindow().getDecorView().setSystemUiVisibility(
                     getWindow().getDecorView().getSystemUiVisibility() & ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
                 );
@@ -73,14 +76,11 @@ public class MainActivity extends AppCompatActivity {
         }
         
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-            // 设置导航栏背景为黑色
             getWindow().setNavigationBarColor(Color.BLACK);
-            // 确保导航栏图标/文字颜色为白色
             getWindow().getDecorView().setSystemUiVisibility(
                 getWindow().getDecorView().getSystemUiVisibility() & ~View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
             );
         }
-        // =========================================================
         
         setContentView(R.layout.activity_main); 
 
@@ -104,7 +104,7 @@ public class MainActivity extends AppCompatActivity {
         webSettings.setCacheMode(WebSettings.LOAD_DEFAULT);
         webSettings.setAllowFileAccess(true);
         webSettings.setAllowContentAccess(true);
-        webSettings.setMediaPlaybackRequiresUserGesture(false); // 允许自动播放
+        webSettings.setMediaPlaybackRequiresUserGesture(false); 
         
         // 处理混合内容 (保持不变)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -216,20 +216,17 @@ public class MainActivity extends AppCompatActivity {
             webView.setVisibility(View.GONE);
             progressBar.setVisibility(View.GONE); 
             
-            // =========================================================
-            // 【增强代码】进入沉浸式全屏模式，隐藏状态栏和导航栏
-            // =========================================================
+            // 【增强代码】进入沉浸式全屏模式，隐藏状态栏和导航栏 (保持不变)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
                 int uiOptions = View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                                 | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
                                 | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION // 隐藏导航栏
-                                | View.SYSTEM_UI_FLAG_FULLSCREEN      // 隐藏状态栏
-                                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY; // 保持沉浸模式
+                                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                                | View.SYSTEM_UI_FLAG_FULLSCREEN
+                                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
                 
                 getWindow().getDecorView().setSystemUiVisibility(uiOptions);
             }
-            // =========================================================
             
             // 【关键修复】将全屏视图添加到 Activity 根布局
             activityMainRoot.addView(mCustomView, new FrameLayout.LayoutParams(
@@ -264,30 +261,24 @@ public class MainActivity extends AppCompatActivity {
                 mCustomViewCallback = null;
             }
             
-            // =========================================================
-            // 【增强代码】退出全屏，恢复到 onCreate 中设置的 UI 模式
-            // =========================================================
+            // 【增强代码】退出全屏，恢复到 onCreate 中设置的 UI 模式 (保持不变)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-                // 恢复系统 UI
                 int uiOptions = View.SYSTEM_UI_FLAG_LAYOUT_STABLE;
                 
-                // 确保状态栏文字是白色（黑底白字）
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     uiOptions &= ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
                 }
-                // 确保导航栏图标/文字颜色为白色（黑底白字）
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
                     uiOptions &= ~View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
                 }
                 
                 getWindow().getDecorView().setSystemUiVisibility(uiOptions);
                 
-                // 重新设置导航栏颜色 (因为全屏操作可能会重置它)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
                     getWindow().setNavigationBarColor(Color.BLACK);
                 }
             }
-            // =========================================================
+            
 
             // **[防黑屏修复 2/2] 使用 Handler 强制进行分步重绘和硬件加速重置** (保持不变)
             handler.postDelayed(() -> {
@@ -297,12 +288,11 @@ public class MainActivity extends AppCompatActivity {
                 // 2. 强制请求布局和重绘
                 webView.requestLayout();
                 webView.invalidate();
-                webView.loadUrl("javascript:void(0)"); // 临时加载空白 URL，刷新引擎
+                webView.loadUrl("javascript:void(0)"); 
 
                 // 3. 延迟执行 Scroll Hack，进一步刺激渲染
                 handler.postDelayed(() -> {
                      webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
-                     // 滚动 hack：移动 1 像素再移回，强制重绘
                      webView.scrollTo(webView.getScrollX() + 1, webView.getScrollY());
                      webView.scrollTo(webView.getScrollX() - 1, webView.getScrollY());
                      Log.d("BlackScreenFix", "全屏退出黑屏修复完成 (Scroll Hack)。");
@@ -317,13 +307,11 @@ public class MainActivity extends AppCompatActivity {
      */
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
-        // 1. 如果当前处于视频全屏模式，按返回键先退出全屏
         if (keyCode == KeyEvent.KEYCODE_BACK && mCustomView != null) {
             webView.getWebChromeClient().onHideCustomView(); 
             return true;
         }
         
-        // 2. 如果 WebView 可以返回，则执行页面返回操作
         if (keyCode == KeyEvent.KEYCODE_BACK && webView.canGoBack()) {
             webView.goBack();
             return true;
@@ -344,6 +332,12 @@ public class MainActivity extends AppCompatActivity {
     // 防止 WebView 内存泄漏 (保持不变)
     @Override
     protected void onDestroy() {
+        // =========================================================
+        // 【屏幕常亮清理】在 Activity 销毁时，可以移除常亮标志 (尽管系统会自动清理)
+        // =========================================================
+        getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        // =========================================================
+        
         if (webView != null) {
             webView.removeJavascriptInterface("Android"); 
             webView.destroy();
