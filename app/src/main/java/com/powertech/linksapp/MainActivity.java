@@ -1,4 +1,4 @@
-package com.powertech.linksapp; 
+package com.powertech.vip.app; 
 
 import android.annotation.SuppressLint;
 import android.content.ClipData;
@@ -33,21 +33,23 @@ import java.util.Map;
 
 /**
  * Links App 主活动。
- * 处理 WebView 设置、沉浸式模式、JavaScript 桥接、视频全屏支持和网络兼容性增强。
- * 已集成【增强版全屏返回黑屏修复】。
+ * 针对 HLS.js 前端优化：
+ * 1. 移除自定义 WebChromeClient 视频全屏拦截 (onShowCustomView/onHideCustomView)，
+ * 交由系统原生处理 <video> 元素的全屏请求，以避免与前端 HLS.js 播放器冲突。
+ * 2. 保留强大的返回键处理和 WebView 硬件加速重置机制（防黑屏）。
  */
 public class MainActivity extends AppCompatActivity {
 
     private WebView webView;
     private ProgressBar progressBar;
     
-    // 用于处理视频全屏的视图和容器
-    private View mCustomView;
+    // 用于处理视频全屏的视图和容器 (保留定义，用于 onKeyDown 检查和硬件加速修复)
+    private View mCustomView; // 用于跟踪当前是否有自定义全屏视图
     private FrameLayout mCustomViewContainer; 
-    private WebChromeClient.CustomViewCallback mCustomViewCallback;
+    private WebChromeClient.CustomViewCallback mCustomViewCallback; // 用于退出全屏
 
     // 您的 Worker 地址 (用于 WebView 加载和作为 Referer)
-    private static final String TARGET_URL = "https://powertech.m3u8-ads.workers.dev/";
+    private static final String TARGET_URL = "https://app.key-3b8.workers.dev/";
     // 1DM+ 的包名
     private static final String IDM_PACKAGE = "idm.internet.download.manager.plus";
     
@@ -67,6 +69,7 @@ public class MainActivity extends AppCompatActivity {
         progressBar = findViewById(R.id.progress_bar);
         
         // 使用根视图 (android.R.id.content) 作为全屏视频的容器
+        // **注意：由于移除了自定义全屏逻辑，这个容器主要用于原生 WebChromeClient 的默认行为。**
         mCustomViewContainer = (FrameLayout) findViewById(android.R.id.content); 
 
         // 配置 WebView 设置
@@ -96,6 +99,7 @@ public class MainActivity extends AppCompatActivity {
         webView.setWebViewClient(new CustomWebViewClient());
 
         // 设置 WebChromeClient 来处理进度条和视频全屏、Console Log
+        // 使用新的 CustomWebChromeClient
         webView.setWebChromeClient(new CustomWebChromeClient());
 
         // 显式加载目标网站并设置 Referer
@@ -158,7 +162,8 @@ public class MainActivity extends AppCompatActivity {
 
     /**
      * 自定义的 WebChromeClient，处理进度条、视频全屏和 Console Log。
-     * 【黑屏修复增强版】
+     * **修复：移除自定义的 onShowCustomView 和 onHideCustomView，让系统原生处理全屏。**
+     * **保留：利用 onShowCustomView 的回调来更新 mCustomView 状态，并强制进行硬件加速重置，作为防黑屏的最后保险。**
      */
     public class CustomWebChromeClient extends WebChromeClient {
         
@@ -183,9 +188,10 @@ public class MainActivity extends AppCompatActivity {
             return true;
         }
 
-        // 处理视频全屏请求
+        // **【保留：用于状态跟踪和预处理】**
         @Override
         public void onShowCustomView(View view, CustomViewCallback callback) {
+            // 确保退出旧视图 (原生 WebChromeClient 行为)
             if (mCustomView != null) {
                 callback.onCustomViewHidden();
                 return;
@@ -193,52 +199,31 @@ public class MainActivity extends AppCompatActivity {
             
             progressBar.setVisibility(View.GONE);
             
-            // 【增强修复 1/2】进入全屏前，临时切换到软件渲染，防止底层 SurfaceView 残留
-            webView.setLayerType(View.LAYER_TYPE_SOFTWARE, null); 
-            
-            webView.setBackgroundColor(Color.TRANSPARENT); 
-            webView.setVisibility(View.GONE);
-            
+            // **[优化] 记录状态**
             mCustomView = view;
             mCustomViewCallback = callback;
-
-            mCustomViewContainer.addView(mCustomView, new FrameLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, 
-                    ViewGroup.LayoutParams.MATCH_PARENT
-            ));
-            mCustomViewContainer.setVisibility(View.VISIBLE);
             
-            // 隐藏系统的导航栏和状态栏
-            getWindow().getDecorView().setSystemUiVisibility(
-                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                    | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                    | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                    | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                    | View.SYSTEM_UI_FLAG_FULLSCREEN
-                    | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY 
-            );
+            // **[增强修复 1/2] 进入全屏前，临时切换到软件渲染，防止底层 SurfaceView 残留**
+            webView.setLayerType(View.LAYER_TYPE_SOFTWARE, null); 
+
+            // **交由原生 WebChromeClient 的默认实现来添加 View 和设置全屏标志**
+            super.onShowCustomView(view, callback);
         }
 
-        // 处理退出视频全屏请求
+        // **【保留：用于状态跟踪和防黑屏修复】**
         @Override
         public void onHideCustomView() {
             if (mCustomView == null) {
+                super.onHideCustomView(); // 执行原生退出逻辑
                 return;
             }
 
-            // 1. 恢复系统的导航栏和状态栏
-            getWindow().getDecorView().setSystemUiVisibility(0);
-
-            // 2. 移除全屏视频视图
-            mCustomViewContainer.removeView(mCustomView);
-            mCustomViewContainer.setVisibility(View.GONE);
+            // **[优化] 记录状态**
             mCustomView = null;
-            mCustomViewCallback.onCustomViewHidden();
-            
-            // 3. 显示 WebView
-            webView.setVisibility(View.VISIBLE);
-            
-            // 4. 【核心黑屏修复 2/2】使用 Handler 强制进行分步重绘和硬件加速重置
+            // **必须先调用 super，让系统移除 View 并恢复 UI 标志**
+            super.onHideCustomView();
+
+            // **4. 【核心黑屏修复 2/2】使用 Handler 强制进行分步重绘和硬件加速重置**
             handler.postDelayed(() -> {
                 Log.d("BlackScreenFix", "Phase 1: Starting hardware acceleration reset.");
                 
@@ -269,9 +254,10 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         // 1. 如果当前处于视频全屏模式，按返回键先退出全屏
+        // mCustomView 是在 onShowCustomView 中设置的，只要系统 WebChromeClient 触发了全屏，这个就会被设置。
         if (keyCode == KeyEvent.KEYCODE_BACK && mCustomView != null) {
-            // 使用 CustomWebChromeClient 的 onHideCustomView 方法
-            ((CustomWebChromeClient) webView.getWebChromeClient()).onHideCustomView();
+            // 使用 WebChromeClient 的 onHideCustomView 方法
+            webView.getWebChromeClient().onHideCustomView();
             return true;
         }
         
@@ -287,8 +273,9 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
+        // 必须通过 getWebChromeClient() 调用 onHideCustomView()
         if (mCustomView != null) {
-            ((CustomWebChromeClient) webView.getWebChromeClient()).onHideCustomView();
+            webView.getWebChromeClient().onHideCustomView();
         }
     }
 
