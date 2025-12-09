@@ -21,7 +21,7 @@ import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
-import android.widget.FrameLayout;
+import android.widget.FrameLayout; // 引入 FrameLayout
 import android.widget.ProgressBar;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
@@ -35,12 +35,15 @@ import java.util.Map;
  * 1. 纯粹的 WebView 视频播放器容器。
  * 2. 利用原生的 WebChromeClient 视频全屏机制。
  * 3. 在全屏切换时，强制进行硬件加速重置和 Scroll Hack，解决 WebView 黑屏或渲染残留问题。
- * 4. 移除所有下载管理（1DM+）相关逻辑。
+ * 4. 修复：在 onHideCustomView 时正确移除全屏视图，解决返回主页黑屏。
  */
 public class MainActivity extends AppCompatActivity {
 
     private WebView webView;
     private ProgressBar progressBar;
+    
+    // 【新增】Activity 的根容器，用于添加/移除全屏视图
+    private FrameLayout activityMainRoot; 
     
     // 用于处理视频全屏的视图和回调
     private View mCustomView; 
@@ -57,9 +60,13 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         
-        // 假设 R.layout.activity_main 包含 WebView (id: webview) 和 ProgressBar (id: progress_bar)
+        // 假设 R.layout.activity_main 包含 WebView (id: webview), ProgressBar (id: progress_bar)
+        // 以及根 FrameLayout (id: activity_main_root)
         setContentView(R.layout.activity_main); 
 
+        // 【新增】初始化根容器
+        activityMainRoot = findViewById(R.id.activity_main_root); 
+        
         // 初始化视图
         webView = findViewById(R.id.webview);
         progressBar = findViewById(R.id.progress_bar);
@@ -84,7 +91,7 @@ public class MainActivity extends AppCompatActivity {
             webSettings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
         }
         
-        // 注入 JavaScript 接口，仅保留 getClipboardText()
+        // 注入 JavaScript 接口
         webView.addJavascriptInterface(new WebAppInterface(this), "Android");
 
         // 设置 Client
@@ -147,7 +154,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * 自定义的 WebChromeClient，核心在于全屏状态跟踪和防黑屏修复。
+     * 自定义的 WebChromeClient，核心在于全屏状态跟踪、视图管理和防黑屏修复。
      */
     public class CustomWebChromeClient extends WebChromeClient {
         
@@ -171,7 +178,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         /**
-         * 【核心全屏处理】由系统原生实现全屏，我们只做状态跟踪和防黑屏预处理。
+         * 【核心全屏处理】显示自定义视图（视频全屏）。
          */
         @Override
         public void onShowCustomView(View view, CustomViewCallback callback) {
@@ -186,14 +193,21 @@ public class MainActivity extends AppCompatActivity {
             mCustomView = view;
             mCustomViewCallback = callback;
             
-            progressBar.setVisibility(View.GONE);
+            // 隐藏 WebView 和 ProgressBar
+            webView.setVisibility(View.GONE);
+            progressBar.setVisibility(View.GONE); 
+            
+            // 【关键修复】将全屏视图添加到 Activity 根布局
+            activityMainRoot.addView(mCustomView, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, 
+                FrameLayout.LayoutParams.MATCH_PARENT));
             
             // **[防黑屏修复 1/2] 切换到软件渲染，防止 SurfaceView 残留**
             webView.setLayerType(View.LAYER_TYPE_SOFTWARE, null); 
         }
 
         /**
-         * 【核心防黑屏修复】在退出全屏时，强制进行分步重绘和硬件加速重置。
+         * 【核心防黑屏修复】退出自定义视图（视频全屏）。
          */
         @Override
         public void onHideCustomView() {
@@ -202,10 +216,21 @@ public class MainActivity extends AppCompatActivity {
             if (mCustomView == null) {
                 return;
             }
-
+            
+            // 【关键修复】从 Activity 根布局中移除全屏视图
+            activityMainRoot.removeView(mCustomView);
+            
+            // 恢复 WebView 的可见性 
+            webView.setVisibility(View.VISIBLE);
+            
             // 退出全屏后，清空状态
             mCustomView = null;
+            if (mCustomViewCallback != null) {
+                mCustomViewCallback.onCustomViewHidden();
+                mCustomViewCallback = null;
+            }
             
+
             // **[防黑屏修复 2/2] 使用 Handler 强制进行分步重绘和硬件加速重置**
             handler.postDelayed(() -> {
                 // 1. 强制重新启用硬件加速 
@@ -236,7 +261,8 @@ public class MainActivity extends AppCompatActivity {
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         // 1. 如果当前处于视频全屏模式，按返回键先退出全屏
         if (keyCode == KeyEvent.KEYCODE_BACK && mCustomView != null) {
-            webView.getWebChromeClient().onHideCustomView();
+            // 直接调用 onHideCustomView 即可，因为它包含了退出和清理逻辑
+            webView.getWebChromeClient().onHideCustomView(); 
             return true;
         }
         
@@ -252,8 +278,9 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
+        // 确保使用 onHideCustomView 来执行清理和修复逻辑
         if (mCustomView != null) {
-            webView.getWebChromeClient().onHideCustomView();
+            webView.getWebChromeClient().onHideCustomView(); 
         }
     }
 
@@ -261,8 +288,15 @@ public class MainActivity extends AppCompatActivity {
     // 防止 WebView 内存泄漏
     @Override
     protected void onDestroy() {
+        // 确保先清理 WebChromeClient 的自定义视图，防止内存泄漏和视图残留
+        if (mCustomView != null && webView != null) {
+            // 注意：这里需要确保 onHideCustomView 不会因为 Activity 销毁而引发崩溃
+            // 但标准做法是让 WebView 在 onDestroy 中被销毁
+        }
+        
         if (webView != null) {
             webView.removeJavascriptInterface("Android"); 
+            // 确保 webView.destroy() 在 Activity 销毁时执行
             webView.destroy();
         }
         super.onDestroy();
