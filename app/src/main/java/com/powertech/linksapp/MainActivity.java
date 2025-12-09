@@ -4,9 +4,8 @@ import android.annotation.SuppressLint;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
-import android.content.Intent;
 import android.graphics.Bitmap;
-import android.net.Uri;
+import android.graphics.Color; // 【新增导入】
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -21,7 +20,7 @@ import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
-import android.widget.FrameLayout; // 引入 FrameLayout
+import android.widget.FrameLayout; 
 import android.widget.ProgressBar;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
@@ -34,15 +33,15 @@ import java.util.Map;
  * 优化目标：
  * 1. 纯粹的 WebView 视频播放器容器。
  * 2. 利用原生的 WebChromeClient 视频全屏机制。
- * 3. 在全屏切换时，强制进行硬件加速重置和 Scroll Hack，解决 WebView 黑屏或渲染残留问题。
- * 4. 修复：在 onHideCustomView 时正确移除全屏视图，解决返回主页黑屏。
+ * 3. 修复：在 onHideCustomView 时正确移除全屏视图，解决返回主页黑屏。
+ * 4. 增强：设置状态栏和导航栏为黑底白字，并在全屏时隐藏。
  */
 public class MainActivity extends AppCompatActivity {
 
     private WebView webView;
     private ProgressBar progressBar;
     
-    // 【新增】Activity 的根容器，用于添加/移除全屏视图
+    // Activity 的根容器，用于添加/移除全屏视图
     private FrameLayout activityMainRoot; 
     
     // 用于处理视频全屏的视图和回调
@@ -60,18 +59,39 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         
-        // 假设 R.layout.activity_main 包含 WebView (id: webview), ProgressBar (id: progress_bar)
-        // 以及根 FrameLayout (id: activity_main_root)
+        // =========================================================
+        // 【新增代码】设置状态栏和导航栏样式为黑底白字
+        // =========================================================
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            // 确保文字是白色（黑底白字）
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                // 清除 SYSTEM_UI_FLAG_LIGHT_STATUS_BAR 确保文字是白色
+                getWindow().getDecorView().setSystemUiVisibility(
+                    getWindow().getDecorView().getSystemUiVisibility() & ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+                );
+            }
+        }
+        
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            // 设置导航栏背景为黑色
+            getWindow().setNavigationBarColor(Color.BLACK);
+            // 确保导航栏图标/文字颜色为白色
+            getWindow().getDecorView().setSystemUiVisibility(
+                getWindow().getDecorView().getSystemUiVisibility() & ~View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+            );
+        }
+        // =========================================================
+        
         setContentView(R.layout.activity_main); 
 
-        // 【新增】初始化根容器
+        // 初始化根容器
         activityMainRoot = findViewById(R.id.activity_main_root); 
         
         // 初始化视图
         webView = findViewById(R.id.webview);
         progressBar = findViewById(R.id.progress_bar);
         
-        // 配置 WebView 设置
+        // 配置 WebView 设置 (保持不变)
         WebSettings webSettings = webView.getSettings();
         webSettings.setJavaScriptEnabled(true); 
         webSettings.setDomStorageEnabled(true);
@@ -86,19 +106,19 @@ public class MainActivity extends AppCompatActivity {
         webSettings.setAllowContentAccess(true);
         webSettings.setMediaPlaybackRequiresUserGesture(false); // 允许自动播放
         
-        // 处理混合内容
+        // 处理混合内容 (保持不变)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             webSettings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
         }
         
-        // 注入 JavaScript 接口
+        // 注入 JavaScript 接口 (保持不变)
         webView.addJavascriptInterface(new WebAppInterface(this), "Android");
 
-        // 设置 Client
+        // 设置 Client (保持不变)
         webView.setWebViewClient(new CustomWebViewClient());
         webView.setWebChromeClient(new CustomWebChromeClient());
 
-        // 显式加载目标网站并设置 Referer
+        // 显式加载目标网站并设置 Referer (保持不变)
         webView.loadUrl(TARGET_URL, getRefererHeaders());
     }
     
@@ -112,7 +132,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * 自定义的 WebViewClient，处理页面加载、链接跳转和错误。
+     * 自定义的 WebViewClient，处理页面加载、链接跳转和错误。(保持不变)
      */
     public class CustomWebViewClient extends WebViewClient {
         @Override
@@ -182,8 +202,7 @@ public class MainActivity extends AppCompatActivity {
          */
         @Override
         public void onShowCustomView(View view, CustomViewCallback callback) {
-            super.onShowCustomView(view, callback);
-
+            
             if (mCustomView != null) {
                 callback.onCustomViewHidden();
                 return;
@@ -196,6 +215,21 @@ public class MainActivity extends AppCompatActivity {
             // 隐藏 WebView 和 ProgressBar
             webView.setVisibility(View.GONE);
             progressBar.setVisibility(View.GONE); 
+            
+            // =========================================================
+            // 【增强代码】进入沉浸式全屏模式，隐藏状态栏和导航栏
+            // =========================================================
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                int uiOptions = View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION // 隐藏导航栏
+                                | View.SYSTEM_UI_FLAG_FULLSCREEN      // 隐藏状态栏
+                                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY; // 保持沉浸模式
+                
+                getWindow().getDecorView().setSystemUiVisibility(uiOptions);
+            }
+            // =========================================================
             
             // 【关键修复】将全屏视图添加到 Activity 根布局
             activityMainRoot.addView(mCustomView, new FrameLayout.LayoutParams(
@@ -230,8 +264,32 @@ public class MainActivity extends AppCompatActivity {
                 mCustomViewCallback = null;
             }
             
+            // =========================================================
+            // 【增强代码】退出全屏，恢复到 onCreate 中设置的 UI 模式
+            // =========================================================
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                // 恢复系统 UI
+                int uiOptions = View.SYSTEM_UI_FLAG_LAYOUT_STABLE;
+                
+                // 确保状态栏文字是白色（黑底白字）
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    uiOptions &= ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+                }
+                // 确保导航栏图标/文字颜色为白色（黑底白字）
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                    uiOptions &= ~View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+                }
+                
+                getWindow().getDecorView().setSystemUiVisibility(uiOptions);
+                
+                // 重新设置导航栏颜色 (因为全屏操作可能会重置它)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                    getWindow().setNavigationBarColor(Color.BLACK);
+                }
+            }
+            // =========================================================
 
-            // **[防黑屏修复 2/2] 使用 Handler 强制进行分步重绘和硬件加速重置**
+            // **[防黑屏修复 2/2] 使用 Handler 强制进行分步重绘和硬件加速重置** (保持不变)
             handler.postDelayed(() -> {
                 // 1. 强制重新启用硬件加速 
                 webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
@@ -255,13 +313,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * 处理返回键：优先退出视频全屏，其次是页面回退。
+     * 处理返回键：优先退出视频全屏，其次是页面回退。(保持不变)
      */
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         // 1. 如果当前处于视频全屏模式，按返回键先退出全屏
         if (keyCode == KeyEvent.KEYCODE_BACK && mCustomView != null) {
-            // 直接调用 onHideCustomView 即可，因为它包含了退出和清理逻辑
             webView.getWebChromeClient().onHideCustomView(); 
             return true;
         }
@@ -274,36 +331,28 @@ public class MainActivity extends AppCompatActivity {
         return super.onKeyDown(keyCode, event);
     }
     
-    // 确保在 Activity 暂停或停止时也隐藏自定义视图
+    // 确保在 Activity 暂停或停止时也隐藏自定义视图 (保持不变)
     @Override
     protected void onPause() {
         super.onPause();
-        // 确保使用 onHideCustomView 来执行清理和修复逻辑
         if (mCustomView != null) {
             webView.getWebChromeClient().onHideCustomView(); 
         }
     }
 
 
-    // 防止 WebView 内存泄漏
+    // 防止 WebView 内存泄漏 (保持不变)
     @Override
     protected void onDestroy() {
-        // 确保先清理 WebChromeClient 的自定义视图，防止内存泄漏和视图残留
-        if (mCustomView != null && webView != null) {
-            // 注意：这里需要确保 onHideCustomView 不会因为 Activity 销毁而引发崩溃
-            // 但标准做法是让 WebView 在 onDestroy 中被销毁
-        }
-        
         if (webView != null) {
             webView.removeJavascriptInterface("Android"); 
-            // 确保 webView.destroy() 在 Activity 销毁时执行
             webView.destroy();
         }
         super.onDestroy();
     }
 
     /**
-     * JavaScript Interface Class: 仅保留 getClipboardText 方法。
+     * JavaScript Interface Class: 仅保留 getClipboardText 方法。(保持不变)
      */
     public class WebAppInterface {
         Context mContext;
