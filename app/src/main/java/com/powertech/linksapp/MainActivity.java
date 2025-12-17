@@ -31,7 +31,7 @@ import java.util.Map;
 
 /**
  * PowerTech 影视TV - 全设备通用版
- * 修复说明：支持手机/平板 LAUNCHER 与 电视 LEANBACK_LAUNCHER 双重启动
+ * 兼容：Android TV, 手机, 平板
  */
 public class MainActivity extends AppCompatActivity {
 
@@ -50,10 +50,10 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         
-        // 视频播放防息屏
+        // 保持屏幕常亮 (播放视频必备)
         getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         
-        // UI 样式初始化
+        // 沉浸式 UI 设置 (黑底白字)
         setupSystemUI();
         
         setContentView(R.layout.activity_main); 
@@ -62,14 +62,15 @@ public class MainActivity extends AppCompatActivity {
         webView = findViewById(R.id.webview);
         progressBar = findViewById(R.id.progress_bar);
         
-        // 核心配置
+        // WebView 核心配置
         configureWebView();
         
+        // 注入原生接口
         webView.addJavascriptInterface(new WebAppInterface(this), "Android");
         webView.setWebViewClient(new CustomWebViewClient());
         webView.setWebChromeClient(new CustomWebChromeClient());
 
-        // 处理键盘/遥控器按键
+        // TV 专用按键监听器 (仅在检测到按键时触发)
         webView.setOnKeyListener((v, keyCode, event) -> {
             if (event.getAction() == KeyEvent.ACTION_DOWN) {
                 return handleTvInput(keyCode);
@@ -81,13 +82,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * 智能识别 TV 设备
+     * 判断当前是否为电视设备
      */
     private boolean isTvDevice() {
-        PackageManager pm = getPackageManager();
-        return pm.hasSystemFeature(PackageManager.FEATURE_LEANBACK) ||
-               pm.hasSystemFeature(PackageManager.FEATURE_TELEVISION) ||
-               pm.hasSystemFeature("android.hardware.type.television");
+        return getPackageManager().hasSystemFeature(PackageManager.FEATURE_LEANBACK) ||
+               getPackageManager().hasSystemFeature(PackageManager.FEATURE_TELEVISION);
     }
 
     private void configureWebView() {
@@ -99,15 +98,12 @@ public class MainActivity extends AppCompatActivity {
         s.setUseWideViewPort(true);
         s.setMediaPlaybackRequiresUserGesture(false); 
         s.setAllowFileAccess(true);
-        s.setAllowContentAccess(true);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            s.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
-        }
+        s.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
         
-        // 通用焦点设置，确保手机点选和电视遥控都有效
-        webView.setFocusable(true);
-        webView.setFocusableInTouchMode(true);
+        // 如果是 TV，增强焦点获取
         if (isTvDevice()) {
+            webView.setFocusable(true);
+            webView.setFocusableInTouchMode(true);
             webView.requestFocus();
         }
     }
@@ -115,11 +111,10 @@ public class MainActivity extends AppCompatActivity {
     private void setupSystemUI() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             getWindow().setStatusBarColor(Color.BLACK);
-            getWindow().setNavigationBarColor(Color.BLACK);
-            // 关闭浅色状态栏模式（确保图标是白色的）
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                View decor = getWindow().getDecorView();
-                decor.setSystemUiVisibility(decor.getSystemUiVisibility() & ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+                getWindow().getDecorView().setSystemUiVisibility(
+                    getWindow().getDecorView().getSystemUiVisibility() & ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+                );
             }
         }
     }
@@ -134,17 +129,20 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    /**
+     * 处理 TV 遥控器逻辑
+     */
     private boolean handleTvInput(int keyCode) {
-        // 媒体键快进快退
-        if (keyCode == KeyEvent.KEYCODE_MEDIA_FAST_FORWARD || keyCode == KeyEvent.KEYCODE_MEDIA_NEXT) {
+        // 1. 媒体控制键 (快进/快退) - 通用
+        if (keyCode == KeyEvent.KEYCODE_MEDIA_FAST_FORWARD) {
             executeJavaScript("if(window.videoSeek) window.videoSeek(" + SEEK_SECONDS + ");");
             return true;
-        } else if (keyCode == KeyEvent.KEYCODE_MEDIA_REWIND || keyCode == KeyEvent.KEYCODE_MEDIA_PREVIOUS) {
+        } else if (keyCode == KeyEvent.KEYCODE_MEDIA_REWIND) {
             executeJavaScript("if(window.videoSeek) window.videoSeek(-" + SEEK_SECONDS + ");");
             return true;
         }
 
-        // TV 导航键传递给 JS
+        // 2. D-Pad 导航逻辑 (仅在非全屏且是 TV 时处理)
         if (mCustomView == null && isTvDevice()) { 
             switch (keyCode) {
                 case KeyEvent.KEYCODE_DPAD_UP:
@@ -154,7 +152,7 @@ public class MainActivity extends AppCompatActivity {
                 case KeyEvent.KEYCODE_DPAD_CENTER:
                 case KeyEvent.KEYCODE_ENTER:
                     executeJavaScript("if(window.handleTvKey) window.handleTvKey(" + keyCode + ");");
-                    return false; 
+                    return false; // 返回 false 让系统继续处理焦点循环
             }
         } 
         return false;
@@ -162,21 +160,25 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
-        if (keyCode == KeyEvent.KEYCODE_BACK) {
-            if (mCustomView != null) {
-                webView.getWebChromeClient().onHideCustomView(); 
-                return true;
-            }
-            if (webView.canGoBack()) {
-                webView.goBack();
-                return true;
-            }
+        // 全屏模式下，返回键退出全屏
+        if (keyCode == KeyEvent.KEYCODE_BACK && mCustomView != null) {
+            webView.getWebChromeClient().onHideCustomView(); 
+            return true;
         }
+        
+        // 网页模式下，返回键回退历史
+        if (keyCode == KeyEvent.KEYCODE_BACK && webView.canGoBack()) {
+            webView.goBack();
+            return true;
+        }
+        
+        // 尝试处理 TV 特有按键
         if (handleTvInput(keyCode)) return true;
+        
         return super.onKeyDown(keyCode, event);
     }
 
-    // --- 核心 WebChromeClient (处理全屏) ---
+    // --- 内部类保持原有优化逻辑 ---
 
     public class CustomWebChromeClient extends WebChromeClient {
         @Override
@@ -190,12 +192,11 @@ public class MainActivity extends AppCompatActivity {
             webView.setVisibility(View.GONE);
             activityMainRoot.addView(mCustomView, new FrameLayout.LayoutParams(-1, -1));
             
-            // 开启沉浸式全屏
+            // 全屏时完全隐藏 UI
             getWindow().getDecorView().setSystemUiVisibility(
-                View.SYSTEM_UI_FLAG_LOW_PROFILE | View.SYSTEM_UI_FLAG_FULLSCREEN |
-                View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY |
-                View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
             );
+            webView.setLayerType(View.LAYER_TYPE_SOFTWARE, null); 
         }
 
         @Override
@@ -206,9 +207,10 @@ public class MainActivity extends AppCompatActivity {
             webView.setVisibility(View.VISIBLE);
             if (mCustomViewCallback != null) mCustomViewCallback.onCustomViewHidden();
             
-            setupSystemUI(); // 恢复手机状态栏
+            setupSystemUI(); // 恢复 UI
 
             handler.postDelayed(() -> {
+                webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
                 webView.requestLayout();
                 webView.invalidate();
             }, 100);
@@ -228,10 +230,10 @@ public class MainActivity extends AppCompatActivity {
             return true;
         }
         @Override
-        public void onPageFinished(WebView view, String url) {
-            super.onPageFinished(view, url);
-            // 页面加载完后再次确保焦点
-            if (isTvDevice()) webView.requestFocus();
+        public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
+            if (request.isForMainFrame()) {
+                Toast.makeText(MainActivity.this, "连接失败，请检查网络", Toast.LENGTH_SHORT).show();
+            }
         }
     }
 
@@ -245,6 +247,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         if (webView != null) {
+            webView.removeJavascriptInterface("Android");
             webView.destroy();
         }
         super.onDestroy();
@@ -258,9 +261,9 @@ public class MainActivity extends AppCompatActivity {
             ClipboardManager cm = (ClipboardManager) mContext.getSystemService(Context.CLIPBOARD_SERVICE);
             if (cm != null && cm.hasPrimaryClip()) {
                 ClipData.Item item = cm.getPrimaryClip().getItemAt(0);
-                if (item != null && item.getText() != null) return item.getText().toString();
+                return item != null && item.getText() != null ? item.getText().toString() : "";
             }
             return "";
         }
     }
-}
+            }
