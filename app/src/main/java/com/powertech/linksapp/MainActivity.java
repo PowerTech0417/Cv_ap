@@ -30,12 +30,7 @@ import java.util.Map;
 
 /**
  * Links App 主活动。
- * 优化目标：
- * 1. 纯粹的 WebView 视频播放器容器。
- * 2. 利用原生的 WebChromeClient 视频全屏机制。
- * 3. 修复：在 onHideCustomView 时正确移除全屏视图，解决返回主页黑屏。
- * 4. 增强：设置状态栏和导航栏为黑底白字，并在全屏时隐藏。
- * 5. 修复：在播放时保持屏幕常亮 (FLAG_KEEP_SCREEN_ON)。
+ * 已添加：Android TV 遥控器 (D-Pad, 媒体键) 兼容性增强。
  */
 public class MainActivity extends AppCompatActivity {
 
@@ -54,19 +49,31 @@ public class MainActivity extends AppCompatActivity {
     
     // 引入 Handler 用于执行延迟操作
     private final Handler handler = new Handler(); 
+    
+    // 【TV 增强】常量：定义遥控器快进/快退的秒数
+    private static final int SEEK_SECONDS = 10; 
+
+    /**
+     * Helper: 注入 JavaScript 执行 D-Pad 导航模拟和媒体键操作。
+     * @param jsCode 要执行的 JavaScript 字符串。
+     */
+    private void executeJavaScript(String jsCode) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+            webView.evaluateJavascript(jsCode, null);
+        } else {
+            webView.loadUrl("javascript:" + jsCode);
+        }
+    }
 
     @SuppressLint({"SetJavaScriptEnabled", "InlinedApi"})
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         
-        // =========================================================
-        // 【屏幕常亮修复】保持屏幕常亮，防止息屏
-        // =========================================================
+        // 【屏幕常亮修复】保持屏幕常亮
         getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        // =========================================================
         
-        // 设置状态栏和导航栏样式为黑底白字 (保持不变)
+        // 设置状态栏和导航栏样式
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 getWindow().getDecorView().setSystemUiVisibility(
@@ -118,6 +125,18 @@ public class MainActivity extends AppCompatActivity {
         webView.setWebViewClient(new CustomWebViewClient());
         webView.setWebChromeClient(new CustomWebChromeClient());
 
+        // ********************************************************
+        // 【TV 增强】监听 WebView 的键盘事件，捕获 D-Pad 输入
+        // ********************************************************
+        webView.setOnKeyListener((v, keyCode, event) -> {
+            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                // 仅在按下时处理 TV 输入，并返回 true 表示已处理
+                return handleTvInput(keyCode);
+            }
+            return false;
+        });
+        // ********************************************************
+
         // 显式加载目标网站并设置 Referer (保持不变)
         webView.loadUrl(TARGET_URL, getRefererHeaders());
     }
@@ -131,9 +150,7 @@ public class MainActivity extends AppCompatActivity {
         return extraHeaders;
     }
 
-    /**
-     * 自定义的 WebViewClient，处理页面加载、链接跳转和错误。(保持不变)
-     */
+    // ... (CustomWebViewClient 保持不变)
     public class CustomWebViewClient extends WebViewClient {
         @Override
         public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
@@ -173,9 +190,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    /**
-     * 自定义的 WebChromeClient，核心在于全屏状态跟踪、视图管理和防黑屏修复。
-     */
+    // ... (CustomWebChromeClient 保持不变)
     public class CustomWebChromeClient extends WebChromeClient {
         
         @Override
@@ -301,21 +316,70 @@ public class MainActivity extends AppCompatActivity {
             }, 50); 
         }
     }
+    
+    
+    /**
+     * 【新增方法】处理 TV 遥控器的输入事件。
+     */
+    private boolean handleTvInput(int keyCode) {
+        // 1. 处理 TV 媒体键：快进/快退 (通常在全屏播放时有效)
+        switch (keyCode) {
+            case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD:
+                // 注入 JS 快进操作：要求前端定义 window.videoSeek(seconds) 方法
+                executeJavaScript("window.videoSeek(" + SEEK_SECONDS + ")");
+                return true;
+            case KeyEvent.KEYCODE_MEDIA_REWIND:
+                // 注入 JS 快退操作：要求前端定义 window.videoSeek(seconds) 方法
+                executeJavaScript("window.videoSeek(-" + SEEK_SECONDS + ")");
+                return true;
+        }
+
+        // 2. 处理 D-Pad 导航 (非全屏模式下)
+        if (mCustomView == null) { 
+            switch (keyCode) {
+                // TV D-Pad 方向键
+                case KeyEvent.KEYCODE_DPAD_UP:
+                case KeyEvent.KEYCODE_DPAD_DOWN:
+                case KeyEvent.KEYCODE_DPAD_LEFT:
+                case KeyEvent.KEYCODE_DPAD_RIGHT:
+                case KeyEvent.KEYCODE_DPAD_CENTER:
+                case KeyEvent.KEYCODE_ENTER:
+                    // 示例：将遥控器按键事件和代码传递给 Web JS (需要前端配合)
+                    // 要求前端定义 window.handleTvKey(keyCode) 方法
+                    executeJavaScript("window.handleTvKey(" + keyCode + ")"); 
+                    // 返回 false，让 WebView 继续尝试处理焦点（最佳实践）
+                    return false; 
+            }
+        } 
+        
+        return false;
+    }
+
 
     /**
-     * 处理返回键：优先退出视频全屏，其次是页面回退。(保持不变)
+     * 【核心修改】处理返回键：优先退出视频全屏，其次是页面回退。
+     * 现在将 D-Pad 处理合并到 onKeyDown 中，确保在 Activity 层面拦截。
      */
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
+        // 1. 优先处理全屏退出
         if (keyCode == KeyEvent.KEYCODE_BACK && mCustomView != null) {
             webView.getWebChromeClient().onHideCustomView(); 
             return true;
         }
         
+        // 2. 其次处理页面回退
         if (keyCode == KeyEvent.KEYCODE_BACK && webView.canGoBack()) {
             webView.goBack();
             return true;
         }
+        
+        // 3. 最后处理 TV D-Pad 和媒体键
+        if (handleTvInput(keyCode)) {
+            // 如果 handleTvInput 返回 true (比如处理了媒体键)，则消耗事件
+            return true;
+        }
+        
         return super.onKeyDown(keyCode, event);
     }
     
@@ -332,11 +396,8 @@ public class MainActivity extends AppCompatActivity {
     // 防止 WebView 内存泄漏 (保持不变)
     @Override
     protected void onDestroy() {
-        // =========================================================
-        // 【屏幕常亮清理】在 Activity 销毁时，可以移除常亮标志 (尽管系统会自动清理)
-        // =========================================================
+        // 【屏幕常亮清理】
         getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        // =========================================================
         
         if (webView != null) {
             webView.removeJavascriptInterface("Android"); 
