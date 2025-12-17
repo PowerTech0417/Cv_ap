@@ -18,6 +18,13 @@ android {
         versionName "1.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        
+        // ************************************************
+        // 【关键配置】1. 在 defaultConfig 中指定所有 ABI 架构
+        // ************************************************
+        ndk {
+            abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
+        }
     }
 
     buildTypes {
@@ -27,6 +34,15 @@ android {
         }
     }
     
+    // ************************************************
+    // 【关键配置】2. 禁用 ABI 分割 (Splits)，确保只生成一个 APK 文件
+    // ************************************************
+    splits {
+        abi {
+            enable false
+        }
+    }
+
     // 兼容 Java 11
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_11
